@@ -77,6 +77,30 @@ start_service gateway-api "$PROJECT_ROOT/services/gateway-api" env \
 start_service web "$PROJECT_ROOT" env \
   python3 -m http.server 5173 --bind 127.0.0.1 --directory "$PROJECT_ROOT/web"
 
+wait_for() {
+  local name="$1"
+  local url="$2"
+  for _ in {1..30}; do
+    if curl -fsS --max-time 2 "$url" >/dev/null 2>&1; then
+      echo "$name ready"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "$name failed readiness: $url"
+  echo "logs:"
+  for log_file in "$LOG_DIR"/*.log; do
+    echo "--- $log_file"
+    sed -n '1,120p' "$log_file"
+  done
+  exit 1
+}
+
+wait_for parser-service "http://localhost:8081/healthz"
+wait_for feed-service "http://localhost:8082/healthz"
+wait_for gateway-api "http://localhost:8080/healthz"
+wait_for web "http://127.0.0.1:5173/"
+
 echo "dev stack started"
 echo "web:     http://127.0.0.1:5173"
 echo "gateway: http://localhost:8080"

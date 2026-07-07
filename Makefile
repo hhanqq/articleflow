@@ -7,7 +7,7 @@ export GOCACHE := $(PROJECT_ROOT)/.cache/go-build
 export GOBIN := $(PROJECT_ROOT)/.bin
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: env test web-test web dev-start dev-stop tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
+.PHONY: env test web-test web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
 
 env:
 	@mkdir -p "$(GOPATH)" "$(GOMODCACHE)" "$(GOCACHE)" "$(GOBIN)"
@@ -30,6 +30,12 @@ dev-start: env
 
 dev-stop:
 	bash scripts/dev_stop.sh
+
+dev-status:
+	bash scripts/dev_status.sh
+
+dev-smoke:
+	bash scripts/dev_smoke.sh
 
 tidy: env
 	go work sync

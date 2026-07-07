@@ -34,6 +34,7 @@ func (app *App) Handler() http.Handler {
 	manager := jobs.NewManager(jobs.NewMemoryStore(), searchUsecase)
 
 	mux := http.NewServeMux()
+	mux.Handle("/healthz", httptransport.NewHealthHandler(app.cfg.ServiceName))
 	jobsHandler := httptransport.NewJobsHandler(manager)
 	mux.Handle("/api/v1/parser/jobs", jobsHandler)
 	mux.Handle("/api/v1/parser/jobs/", jobsHandler)

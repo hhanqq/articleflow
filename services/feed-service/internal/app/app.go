@@ -70,6 +70,7 @@ func (app *App) Run(ctx context.Context) error {
 
 func newHTTPHandler(feed *usecase.MemoryFeed) http.Handler {
 	mux := http.NewServeMux()
+	mux.Handle("/healthz", httptransport.NewHealthHandler("feed-service"))
 	mux.Handle("/api/v1/feed", httptransport.NewFeedHandler(feed))
 	return mux
 }

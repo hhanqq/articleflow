@@ -19,3 +19,15 @@ func TestHandlerExposesFeedRoute(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", response.Code)
 	}
 }
+
+func TestHandlerExposesHealthRoute(t *testing.T) {
+	handler := New(config.Config{ServiceName: "feed-service", HTTPAddr: ":0"}).Handler()
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+}

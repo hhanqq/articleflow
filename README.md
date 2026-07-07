@@ -332,6 +332,13 @@ Stop it:
 make dev-stop
 ```
 
+Check status and smoke-test the running stack:
+
+```bash
+make dev-status
+make dev-smoke
+```
+
 Logs are written to `/tmp/articleflow-dev`.
 
 Smoke-run all services without leaving long-running processes:
