@@ -17,6 +17,7 @@ message ArticleDiscoveredEvent {
   string language = 8;
   google.protobuf.Timestamp published_at = 9;
   google.protobuf.Timestamp discovered_at = 10;
+  string content = 11;
 }
 
 message ArticleCreatedEvent {
@@ -36,4 +37,3 @@ message ParserJobFailedEvent {
   string error = 4;
   google.protobuf.Timestamp failed_at = 5;
 }
-

@@ -21,6 +21,7 @@ type ArticleDiscoveredEvent struct {
 	URL          string
 	Title        string
 	Summary      string
+	Content      string
 	Author       string
 	Tags         []string
 	Language     string
@@ -71,4 +72,3 @@ type ParserJobFailedEvent struct {
 	Error      string
 	FailedAt   time.Time
 }
-

@@ -12,9 +12,9 @@ import (
 )
 
 type MemoryArticleStore struct {
-	mu       sync.RWMutex
-	byURL    map[string]articlev1.Article
-	byID     map[string]articlev1.Article
+	mu    sync.RWMutex
+	byURL map[string]articlev1.Article
+	byID  map[string]articlev1.Article
 }
 
 type ArticleStore interface {
@@ -71,6 +71,7 @@ func (usecase *IngestUsecase) IngestDiscovered(ctx context.Context, event events
 		URL:         event.URL,
 		Title:       event.Title,
 		Summary:     event.Summary,
+		Content:     event.Content,
 		Author:      event.Author,
 		Tags:        event.Tags,
 		Language:    event.Language,

@@ -11,6 +11,18 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.KafkaBrokers != "localhost:9092" {
 		t.Fatalf("unexpected Kafka brokers: %s", cfg.KafkaBrokers)
 	}
+	if cfg.HabrBaseURL != "https://habr.com" {
+		t.Fatalf("unexpected Habr base URL: %s", cfg.HabrBaseURL)
+	}
+	if cfg.HabrMaxAttempts != 3 {
+		t.Fatalf("unexpected Habr max attempts: %d", cfg.HabrMaxAttempts)
+	}
+	if cfg.HabrRetryDelayMS != 500 {
+		t.Fatalf("unexpected Habr retry delay: %d", cfg.HabrRetryDelayMS)
+	}
+	if cfg.HabrRequestDelayMS != 500 {
+		t.Fatalf("unexpected Habr request delay: %d", cfg.HabrRequestDelayMS)
+	}
 }
 
 func TestBrokerListSplitsCommaSeparatedBrokers(t *testing.T) {

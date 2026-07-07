@@ -21,10 +21,11 @@ message ArticleCandidate {
   string url = 3;
   string title = 4;
   string summary = 5;
-  string author = 6;
-  repeated string tags = 7;
-  string language = 8;
-  google.protobuf.Timestamp published_at = 9;
+  string content = 6;
+  string author = 7;
+  repeated string tags = 8;
+  string language = 9;
+  google.protobuf.Timestamp published_at = 10;
 }
 
 message ParserJob {
@@ -45,4 +46,3 @@ message SearchArticlesRequest {
 message SearchArticlesResponse {
   repeated ArticleCandidate candidates = 1;
 }
-

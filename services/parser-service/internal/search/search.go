@@ -37,6 +37,9 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 		parser := usecase.parsers[source]
 		candidates, err := parser.Search(ctx, query)
 		if err != nil {
+			if publishErr := usecase.publishFailure(ctx, source, query, err); publishErr != nil {
+				return nil, publishErr
+			}
 			return nil, err
 		}
 		for _, candidate := range candidates {
@@ -59,6 +62,7 @@ func (usecase *Usecase) publishCandidate(ctx context.Context, candidate parserv1
 		URL:          candidate.URL,
 		Title:        candidate.Title,
 		Summary:      candidate.Summary,
+		Content:      candidate.Content,
 		Author:       candidate.Author,
 		Tags:         candidate.Tags,
 		Language:     candidate.Language,
@@ -79,6 +83,25 @@ func (usecase *Usecase) publishCandidate(ctx context.Context, candidate parserv1
 	})
 }
 
+func (usecase *Usecase) publishFailure(ctx context.Context, source string, query parserv1.SearchQuery, cause error) error {
+	event := eventsv1.ParserJobFailedEvent{
+		JobID:      source + ":" + query.Text,
+		SourceName: source,
+		Query:      query.Text,
+		Error:      cause.Error(),
+		FailedAt:   nowUTC(),
+	}
+	payload, err := articleflowkafka.MarshalJSON(event)
+	if err != nil {
+		return err
+	}
+	return usecase.producer.Publish(ctx, articleflowkafka.Message{
+		Topic: eventsv1.TopicParserJobFailed,
+		Key:   event.JobID,
+		Value: payload,
+	})
+}
+
 func selectedSources(query parserv1.SearchQuery, parsers map[string]Parser) []string {
 	if len(query.Sources) > 0 {
 		return query.Sources
@@ -89,4 +112,3 @@ func selectedSources(query parserv1.SearchQuery, parsers map[string]Parser) []st
 	}
 	return sources
 }
-

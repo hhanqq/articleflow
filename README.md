@@ -64,6 +64,9 @@ deployments/postgres/migrations/001_articles.sql
 deployments/postgres/init/002_articles.sql
 ```
 
+Stage 3 Habr runtime search is available through `services/parser-service/cmd/search-habr`.
+It searches Habr, fetches each full article page, publishes `article.discovered.v1` with full `content`, and publishes `parser.job.failed.v1` when a parser source fails.
+
 ## Gateway API
 
 Default address: `:8080`.
@@ -143,6 +146,22 @@ cd services/parser-service
 KAFKA_BROKERS=localhost:9092 go run ./cmd/publish-discovered
 ```
 
+Run a real Habr search and publish discovered articles:
+
+```bash
+source scripts/env.sh
+cd services/parser-service
+KAFKA_BROKERS=localhost:9092 \
+HABR_REQUEST_DELAY_MS=500 \
+go run ./cmd/search-habr --query "go kafka" --limit 5
+```
+
+The same command is exposed via Make:
+
+```bash
+QUERY="go kafka" LIMIT=5 make search-habr
+```
+
 Run the local e2e check for the first backend chain:
 
 ```bash
@@ -160,6 +179,7 @@ make tidy
 make tools
 make proto
 make publish-sample-discovered
+QUERY="go kafka" LIMIT=5 make search-habr
 make e2e-article-chain
 docker compose -f deployments/docker-compose.yml config
 docker compose -f deployments/docker-compose.yml up -d

@@ -36,3 +36,10 @@ func TestSearchQueryNormalizeDefaultsLimit(t *testing.T) {
 	}
 }
 
+func TestArticleCandidateCarriesFullContent(t *testing.T) {
+	candidate := ArticleCandidate{Content: "Full parsed article content"}
+
+	if candidate.Content != "Full parsed article content" {
+		t.Fatalf("unexpected content: %s", candidate.Content)
+	}
+}

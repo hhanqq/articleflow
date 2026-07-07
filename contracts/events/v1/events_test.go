@@ -16,10 +16,11 @@ func TestArticleEventTopics(t *testing.T) {
 
 func TestArticleDiscoveredEventValidate(t *testing.T) {
 	event := ArticleDiscoveredEvent{
-		SourceName:  "habr",
-		ExternalID:  "habr-123",
-		URL:         "https://habr.com/ru/articles/123/",
-		Title:       "Go microservices",
+		SourceName:   "habr",
+		ExternalID:   "habr-123",
+		URL:          "https://habr.com/ru/articles/123/",
+		Title:        "Go microservices",
+		Content:      "Full article text parsed from source page",
 		DiscoveredAt: time.Now().UTC(),
 	}
 
@@ -28,11 +29,21 @@ func TestArticleDiscoveredEventValidate(t *testing.T) {
 	}
 }
 
+func TestArticleDiscoveredEventCarriesFullContent(t *testing.T) {
+	event := ArticleDiscoveredEvent{
+		Content: "Full Habr article content",
+	}
+
+	if event.Content != "Full Habr article content" {
+		t.Fatalf("unexpected content: %s", event.Content)
+	}
+}
+
 func TestArticleDiscoveredEventValidateRequiresURL(t *testing.T) {
 	event := ArticleDiscoveredEvent{
-		SourceName:  "habr",
-		ExternalID:  "habr-123",
-		Title:       "Go microservices",
+		SourceName:   "habr",
+		ExternalID:   "habr-123",
+		Title:        "Go microservices",
 		DiscoveredAt: time.Now().UTC(),
 	}
 
@@ -40,4 +51,3 @@ func TestArticleDiscoveredEventValidateRequiresURL(t *testing.T) {
 		t.Fatal("expected validation error for empty URL")
 	}
 }
-

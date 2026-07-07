@@ -43,6 +43,7 @@ type ArticleCandidate struct {
 	URL         string
 	Title       string
 	Summary     string
+	Content     string
 	Author      string
 	Tags        []string
 	Language    string
@@ -55,4 +56,3 @@ type ParserJob struct {
 	Status    string
 	CreatedAt time.Time
 }
-

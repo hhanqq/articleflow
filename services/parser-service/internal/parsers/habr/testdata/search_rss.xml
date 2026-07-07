@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>Go и Kafka в микросервисах</title>
+      <link>https://habr.com/ru/articles/900001/</link>
+      <guid>habr-900001</guid>
+      <description>Короткое описание про Go и Kafka</description>
+      <author>sergey</author>
+      <category>Go</category>
+      <category>Kafka</category>
+      <pubDate>Tue, 07 Jul 2026 10:30:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Очереди сообщений на практике</title>
+      <link>https://habr.com/ru/articles/900002/</link>
+      <guid>habr-900002</guid>
+      <description>Короткое описание про очереди</description>
+      <author>sergey</author>
+      <category>Architecture</category>
+      <pubDate>Tue, 07 Jul 2026 11:30:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

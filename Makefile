@@ -7,7 +7,7 @@ export GOCACHE := $(PROJECT_ROOT)/.cache/go-build
 export GOBIN := $(PROJECT_ROOT)/.bin
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: env test tidy work-sync tools proto up down publish-sample-discovered e2e-article-chain
+.PHONY: env test tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain
 
 env:
 	@mkdir -p "$(GOPATH)" "$(GOMODCACHE)" "$(GOCACHE)" "$(GOBIN)"
@@ -51,6 +51,9 @@ down:
 
 publish-sample-discovered: env
 	cd services/parser-service && go run ./cmd/publish-discovered
+
+search-habr: env
+	cd services/parser-service && go run ./cmd/search-habr --query "$${QUERY:-go kafka}" --limit "$${LIMIT:-10}"
 
 e2e-article-chain: env
 	bash scripts/e2e_article_chain.sh

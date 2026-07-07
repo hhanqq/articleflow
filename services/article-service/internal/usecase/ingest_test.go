@@ -19,6 +19,7 @@ func TestIngestDiscoveredStoresArticleAndReturnsCreatedEvent(t *testing.T) {
 		URL:          "https://habr.com/ru/articles/123/",
 		Title:        "Go microservices",
 		Summary:      "Short article summary",
+		Content:      "Full parsed article content from Habr",
 		Tags:         []string{"go", "microservices"},
 		PublishedAt:  time.Date(2026, 7, 7, 10, 30, 0, 0, time.UTC),
 		DiscoveredAt: time.Now().UTC(),
@@ -41,6 +42,9 @@ func TestIngestDiscoveredStoresArticleAndReturnsCreatedEvent(t *testing.T) {
 	}
 	if article.Title != discovered.Title {
 		t.Fatalf("unexpected stored title: %s", article.Title)
+	}
+	if article.Content != discovered.Content {
+		t.Fatalf("unexpected stored content: %s", article.Content)
 	}
 }
 

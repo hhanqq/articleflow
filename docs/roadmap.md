@@ -10,9 +10,9 @@
 6. Frontend SPA: vertical article feed, search screen, reactions, parser job status.
 7. Observability and production readiness: logs, metrics, traces, Dockerfiles, e2e commands.
 
-## Current focus
+## Current status
 
-Implement stages 1 and 2 enough to run the first backend chain:
+Stages 1 and 2 are implemented and verified by `make e2e-article-chain`:
 
 ```text
 Kafka article.discovered.v1
@@ -21,3 +21,5 @@ Kafka article.discovered.v1
   -> article-service ingest usecase
   -> Postgres article store
 ```
+
+Stage 3 is in progress: `parser-service/cmd/search-habr` can search Habr through RSS, fetch full article HTML pages, publish full-content `article.discovered.v1` events, and publish `parser.job.failed.v1` on parser source failure.
