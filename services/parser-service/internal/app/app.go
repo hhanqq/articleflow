@@ -10,6 +10,7 @@ import (
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
 	"github.com/hanq/articleflow/services/parser-service/internal/jobs"
 	"github.com/hanq/articleflow/services/parser-service/internal/parsers/habr"
+	"github.com/hanq/articleflow/services/parser-service/internal/parsers/rssfeed"
 	"github.com/hanq/articleflow/services/parser-service/internal/search"
 	httptransport "github.com/hanq/articleflow/services/parser-service/internal/transport/http"
 )
@@ -30,7 +31,12 @@ func (app *App) Handler() http.Handler {
 		RetryDelay:  time.Duration(app.cfg.HabrRetryDelayMS) * time.Millisecond,
 		Waiter:      habr.FixedDelayWaiter{Delay: time.Duration(app.cfg.HabrRequestDelayMS) * time.Millisecond},
 	})
-	searchUsecase := search.NewUsecase(producer, []search.Parser{habrClient})
+	vcClient := rssfeed.NewClient(rssfeed.ClientOptions{
+		SourceName: "vc",
+		FeedURL:    app.cfg.VCRSSFeedURL,
+		Language:   "ru",
+	})
+	searchUsecase := search.NewUsecase(producer, []search.Parser{habrClient, vcClient})
 	manager := jobs.NewManager(jobs.NewMemoryStore(), searchUsecase)
 
 	mux := http.NewServeMux()

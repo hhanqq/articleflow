@@ -33,6 +33,7 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 	}
 
 	var allCandidates []parserv1.ArticleCandidate
+	var lastErr error
 	for _, source := range selectedSources(query, usecase.parsers) {
 		parser := usecase.parsers[source]
 		candidates, err := parser.Search(ctx, query)
@@ -40,7 +41,8 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 			if publishErr := usecase.publishFailure(ctx, source, query, err); publishErr != nil {
 				return nil, publishErr
 			}
-			return nil, err
+			lastErr = err
+			continue
 		}
 		for _, candidate := range candidates {
 			if err := usecase.publishCandidate(ctx, candidate); err != nil {
@@ -48,6 +50,9 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 			}
 			allCandidates = append(allCandidates, candidate)
 		}
+	}
+	if len(allCandidates) == 0 && lastErr != nil {
+		return nil, lastErr
 	}
 	if query.Limit > 0 && len(allCandidates) > query.Limit {
 		allCandidates = allCandidates[:query.Limit]

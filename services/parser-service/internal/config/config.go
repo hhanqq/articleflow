@@ -14,6 +14,7 @@ type Config struct {
 	HabrMaxAttempts    int
 	HabrRetryDelayMS   int
 	HabrRequestDelayMS int
+	VCRSSFeedURL       string
 }
 
 func Load() Config {
@@ -25,6 +26,7 @@ func Load() Config {
 		HabrMaxAttempts:    sharedconfig.Int("HABR_MAX_ATTEMPTS", 3),
 		HabrRetryDelayMS:   sharedconfig.Int("HABR_RETRY_DELAY_MS", 500),
 		HabrRequestDelayMS: sharedconfig.Int("HABR_REQUEST_DELAY_MS", 500),
+		VCRSSFeedURL:       sharedconfig.String("VC_RSS_FEED_URL", "https://vc.ru/rss"),
 	}
 }
 

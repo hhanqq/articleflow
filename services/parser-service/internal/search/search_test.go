@@ -107,3 +107,41 @@ func TestSearchAndPublishPublishesFailureEvent(t *testing.T) {
 		t.Fatalf("unexpected query: %s", event.Query)
 	}
 }
+
+func TestSearchAndPublishKeepsSuccessfulSourcesWhenAnotherSourceFails(t *testing.T) {
+	producer := articleflowkafka.NewMemoryProducer()
+	usecase := NewUsecase(producer, []Parser{
+		fakeParser{
+			sourceName: "habr",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName: "habr",
+					ExternalID: "habr-123",
+					URL:        "https://habr.com/ru/articles/123/",
+					Title:      "Go and Kafka",
+				},
+			},
+		},
+		fakeParser{sourceName: "vc", err: errors.New("vc unavailable")},
+	})
+
+	candidates, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:    "go kafka",
+		Sources: []string{"habr", "vc"},
+		Limit:   10,
+	})
+
+	if err != nil {
+		t.Fatalf("expected partial success, got %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(candidates))
+	}
+	messages := producer.Messages()
+	if len(messages) != 2 {
+		t.Fatalf("expected discovered and failure messages, got %d", len(messages))
+	}
+	if messages[0].Topic != eventsv1.TopicArticleDiscovered || messages[1].Topic != eventsv1.TopicParserJobFailed {
+		t.Fatalf("unexpected topics: %s, %s", messages[0].Topic, messages[1].Topic)
+	}
+}

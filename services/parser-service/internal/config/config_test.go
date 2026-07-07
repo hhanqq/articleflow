@@ -26,6 +26,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.HabrRequestDelayMS != 500 {
 		t.Fatalf("unexpected Habr request delay: %d", cfg.HabrRequestDelayMS)
 	}
+	if cfg.VCRSSFeedURL != "https://vc.ru/rss" {
+		t.Fatalf("unexpected vc.ru RSS URL: %s", cfg.VCRSSFeedURL)
+	}
 }
 
 func TestBrokerListSplitsCommaSeparatedBrokers(t *testing.T) {

@@ -67,8 +67,9 @@ deployments/postgres/migrations/001_articles.sql
 deployments/postgres/init/002_articles.sql
 ```
 
-Stage 3 Habr runtime search is available through `services/parser-service/cmd/search-habr`.
-It searches Habr, fetches each full article page, publishes `article.discovered.v1` with full `content`, and publishes `parser.job.failed.v1` when a parser source fails.
+Stage 3 parser runtime search is available through `services/parser-service/cmd/search-habr` and parser-service HTTP jobs.
+It searches Habr with full article HTML parsing and also supports `vc` through a generic RSS parser pointed at `https://vc.ru/rss`.
+Parser errors publish `parser.job.failed.v1`; multi-source jobs keep successful sources when another source is temporarily unavailable.
 
 Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints.
 
@@ -110,7 +111,7 @@ Example search request:
 ```bash
 curl -X POST http://localhost:8080/api/v1/search \
   -H 'Content-Type: application/json' \
-  -d '{"query":"go kafka","sources":["habr"],"limit":10}'
+  -d '{"query":"go kafka","sources":["habr","vc"],"limit":10}'
 ```
 
 Example async parser job through gateway:
@@ -118,7 +119,7 @@ Example async parser job through gateway:
 ```bash
 curl -X POST http://localhost:8080/api/v1/search/jobs \
   -H 'Content-Type: application/json' \
-  -d '{"query":"go kafka","sources":["habr"],"limit":5}'
+  -d '{"query":"go kafka","sources":["habr","vc"],"limit":5}'
 ```
 
 Check job status:
@@ -232,7 +233,7 @@ Example:
 ```bash
 curl -X POST http://localhost:8081/api/v1/parser/jobs \
   -H 'Content-Type: application/json' \
-  -d '{"query":"go kafka","sources":["habr"],"limit":5}'
+  -d '{"query":"go kafka","sources":["habr","vc"],"limit":5}'
 ```
 
 Run the local e2e check for the first backend chain:

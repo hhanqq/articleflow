@@ -104,7 +104,7 @@ async function startSearchJob() {
   try {
     const searchPayload = buildSearchJobPayload({
       query: elements.searchQuery.value,
-      sources: ["habr"],
+      sources: ["habr", "vc"],
       limit: elements.searchLimit.value,
     });
     const jobPayload = await requestJSON("/api/v1/search/jobs", {
