@@ -10,6 +10,7 @@ Articleflow is a microservice-first system for article discovery and personalize
 - `feed-service`: owns feed read models and pagination.
 - `user-service`: owns users, interests, and reactions.
 - `ranking-service`: scores article candidates.
+- `web`: static SPA for the vertical article feed and parser controls.
 
 ## Communication
 

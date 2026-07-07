@@ -82,6 +82,8 @@ article.discovered.v1
   -> gateway-api proxies GET /api/v1/feed to feed-service
 ```
 
+Stage 6 SPA is available in `web/`. It is a dependency-free static app with a vertical article feed, parser job controls, job status polling, API base settings, and reaction buttons.
+
 ## Gateway API
 
 Default address: `:8080`. Parser-service upstream defaults to `http://localhost:8081`; feed-service upstream defaults to `http://localhost:8082`.
@@ -274,6 +276,8 @@ curl http://localhost:8080/api/v1/feed?limit=10
 ```bash
 make env
 make test
+make web-test
+make web
 make tidy
 make tools
 make proto
@@ -291,6 +295,14 @@ source scripts/env.sh
 cd services/gateway-api
 go run ./cmd/gateway-api
 ```
+
+Run the SPA:
+
+```bash
+make web
+```
+
+Open `http://127.0.0.1:5173`. The default API base is `http://localhost:8080`.
 
 Smoke-run all services without leaving long-running processes:
 

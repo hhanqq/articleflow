@@ -27,3 +27,5 @@ Stage 3 is implemented: `parser-service/cmd/search-habr` can search Habr through
 Stage 4 is implemented: parser jobs can be created and checked through parser-service HTTP endpoints and gateway search job proxy endpoints.
 
 Stage 5 is implemented: ranking-service consumes `article.discovered.v1`, publishes `feed.item.scored.v1`, feed-service stores a ranked in-memory read model, and gateway reads `/api/v1/feed` through feed-service.
+
+Stage 6 is implemented: `web/` contains a dependency-free static SPA for the vertical feed, parser job creation/status polling, API base settings, and article reactions.

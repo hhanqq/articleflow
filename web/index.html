@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Articleflow</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <strong>Articleflow</strong>
+        <span>операционная лента статей</span>
+      </div>
+      <label>
+        API
+        <input id="apiBase" type="url" spellcheck="false" />
+      </label>
+      <label>
+        User
+        <input id="userID" type="text" spellcheck="false" />
+      </label>
+      <button id="refreshFeed" type="button">Обновить</button>
+    </header>
+
+    <main class="app-shell">
+      <section class="feed-shell" aria-label="Лента статей">
+        <div class="feed-toolbar">
+          <h1>Лента</h1>
+          <span><output id="feedCount">0</output> items</span>
+        </div>
+        <div id="feed" class="feed"></div>
+      </section>
+
+      <aside class="side-panel" aria-label="Поиск и статус парсера">
+        <form id="searchForm" class="search-form">
+          <h2>Поиск статей</h2>
+          <label>
+            Запрос
+            <input id="searchQuery" type="search" value="go kafka" required />
+          </label>
+          <label>
+            Лимит
+            <input id="searchLimit" type="number" min="1" max="30" value="5" />
+          </label>
+          <div class="source-line">
+            <span>Источник</span>
+            <strong>Habr</strong>
+          </div>
+          <button type="submit">Запустить parser job</button>
+        </form>
+
+        <section class="job-panel">
+          <h2>Parser job</h2>
+          <div class="status-row">
+            <span id="jobStatus" data-status="idle">idle</span>
+          </div>
+          <p id="jobMeta">нет активной задачи</p>
+        </section>
+
+        <section class="ops-panel">
+          <h2>Backend</h2>
+          <p>Gateway: <code>http://localhost:8080</code></p>
+          <p>Parser: <code>http://localhost:8081</code></p>
+          <p>Feed: <code>http://localhost:8082</code></p>
+        </section>
+
+        <p id="lastError" class="error-line" hidden></p>
+      </aside>
+    </main>
+
+    <script type="module" src="./src/app.mjs"></script>
+  </body>
+</html>
