@@ -5,6 +5,7 @@ import {
   buildReactionPayload,
   buildSearchJobPayload,
   formatScore,
+  normalizeArticle,
   normalizeJobResponse,
   normalizeFeedItem,
   shouldPollJob,
@@ -28,6 +29,26 @@ test("normalizeFeedItem accepts Go JSON field names from gateway", () => {
   assert.equal(item.url, "https://habr.com/1");
   assert.deepEqual(item.tags, ["go", "kafka"]);
   assert.equal(item.score, 23.45);
+});
+
+test("normalizeArticle accepts article detail payload from gateway", () => {
+  const article = normalizeArticle({
+    article: {
+      ID: "habr:1",
+      Title: "Go Kafka",
+      Summary: "Summary",
+      Content: "<p>Full text</p>",
+      Author: "author",
+      Tags: ["go"],
+      URL: "https://habr.com/1",
+      PublishedAt: "2026-07-07T12:00:00Z",
+    },
+  });
+
+  assert.equal(article.id, "habr:1");
+  assert.equal(article.title, "Go Kafka");
+  assert.equal(article.content, "<p>Full text</p>");
+  assert.deepEqual(article.tags, ["go"]);
 });
 
 test("buildSearchJobPayload trims query and keeps selected sources", () => {

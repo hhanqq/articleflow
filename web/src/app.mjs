@@ -3,6 +3,7 @@ import {
   buildSearchJobPayload,
   formatDate,
   formatScore,
+  normalizeArticle,
   normalizeJobResponse,
   normalizeFeedItem,
   shouldPollJob,
@@ -14,6 +15,8 @@ const state = {
   items: [],
   selectedIndex: 0,
   activeJob: null,
+  selectedArticle: null,
+  articleLoadingID: "",
   pollTimer: 0,
 };
 
@@ -29,6 +32,7 @@ const elements = {
   jobStatus: document.querySelector("#jobStatus"),
   jobMeta: document.querySelector("#jobMeta"),
   lastError: document.querySelector("#lastError"),
+  articleDetail: document.querySelector("#articleDetail"),
 };
 
 elements.apiBase.value = state.apiBase;
@@ -56,12 +60,26 @@ elements.searchForm.addEventListener("submit", (event) => {
 });
 
 elements.feed.addEventListener("click", (event) => {
+  const detailButton = event.target.closest("[data-open-detail]");
+  if (detailButton) {
+    const articleID = detailButton.closest("[data-article-id]")?.dataset.articleId;
+    void openArticleDetail(articleID);
+    return;
+  }
+
   const button = event.target.closest("[data-reaction]");
   if (!button) {
     return;
   }
   const articleID = button.closest("[data-article-id]")?.dataset.articleId;
   void sendReaction(articleID, button.dataset.reaction);
+});
+
+elements.articleDetail.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-detail]")) {
+    state.selectedArticle = null;
+    renderArticleDetail();
+  }
 });
 
 void loadFeed();
@@ -136,6 +154,28 @@ async function sendReaction(articleID, type) {
   }
 }
 
+async function openArticleDetail(articleID) {
+  setError("");
+  const normalizedID = String(articleID ?? "").trim();
+  if (!normalizedID) {
+    setError("article_id is required");
+    return;
+  }
+  state.selectedArticle = null;
+  state.articleLoadingID = normalizedID;
+  renderArticleDetail();
+  try {
+    const payload = await requestJSON(`/api/v1/articles?id=${encodeURIComponent(normalizedID)}`);
+    state.selectedArticle = normalizeArticle(payload);
+    await sendReaction(normalizedID, "open");
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    state.articleLoadingID = "";
+    renderArticleDetail();
+  }
+}
+
 async function requestJSON(path, options = {}) {
   let response;
   try {
@@ -184,6 +224,7 @@ function renderArticle(item) {
       <p>${escapeHTML(stripHTML(item.summary)).slice(0, 420)}</p>
       <div class="tag-row">${tags}</div>
       <div class="article-actions">
+        <button type="button" data-open-detail>Читать здесь</button>
         <a href="${escapeHTML(item.url)}" target="_blank" rel="noreferrer" data-reaction="open">Открыть</a>
         <button type="button" data-reaction="save">Сохранить</button>
         <button type="button" data-reaction="like">Нравится</button>
@@ -192,6 +233,44 @@ function renderArticle(item) {
       </div>
       <output class="reaction-state" aria-live="polite"></output>
     </article>
+  `;
+}
+
+function renderArticleDetail() {
+  const article = state.selectedArticle;
+  if (!article && !state.articleLoadingID) {
+    elements.articleDetail.hidden = true;
+    elements.articleDetail.innerHTML = "";
+    return;
+  }
+  elements.articleDetail.hidden = false;
+  if (state.articleLoadingID && !article) {
+    elements.articleDetail.innerHTML = `
+      <div class="detail-head">
+        <h2>Загрузка</h2>
+        <button type="button" data-close-detail>Закрыть</button>
+      </div>
+      <p class="detail-muted">${escapeHTML(state.articleLoadingID)}</p>
+    `;
+    return;
+  }
+
+  const tags = article.tags.map((tag) => `<span>${escapeHTML(tag)}</span>`).join("");
+  const date = formatDate(article.publishedAt);
+  const body = article.content || article.summary || "";
+  elements.articleDetail.innerHTML = `
+    <div class="detail-head">
+      <h2>${escapeHTML(article.title)}</h2>
+      <button type="button" data-close-detail>Закрыть</button>
+    </div>
+    <div class="feed-item__meta">
+      <span>${escapeHTML(article.sourceName || "source")}</span>
+      ${article.author ? `<span>${escapeHTML(article.author)}</span>` : ""}
+      ${date ? `<span>${escapeHTML(date)}</span>` : ""}
+    </div>
+    <div class="tag-row">${tags}</div>
+    <div class="detail-body">${sanitizeArticleHTML(body)}</div>
+    ${article.url ? `<a class="detail-source" href="${escapeHTML(article.url)}" target="_blank" rel="noreferrer">Источник</a>` : ""}
   `;
 }
 
@@ -222,6 +301,24 @@ function trimTrailingSlash(value) {
 
 function stripHTML(value) {
   return String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function sanitizeArticleHTML(value) {
+  const template = document.createElement("template");
+  template.innerHTML = String(value || "");
+  for (const element of template.content.querySelectorAll("script,style,iframe,object,embed")) {
+    element.remove();
+  }
+  for (const element of template.content.querySelectorAll("*")) {
+    for (const attribute of [...element.attributes]) {
+      const name = attribute.name.toLowerCase();
+      const val = attribute.value.trim().toLowerCase();
+      if (name.startsWith("on") || val.startsWith("javascript:")) {
+        element.removeAttribute(attribute.name);
+      }
+    }
+  }
+  return template.innerHTML || `<p>${escapeHTML(stripHTML(value))}</p>`;
 }
 
 function escapeHTML(value) {

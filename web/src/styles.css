@@ -225,6 +225,7 @@ h2 {
 .search-form,
 .job-panel,
 .ops-panel,
+.article-detail,
 .error-line {
   display: grid;
   gap: 12px;
@@ -233,6 +234,52 @@ h2 {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.article-detail {
+  max-height: 52vh;
+  overflow: auto;
+}
+
+.detail-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-head h2 {
+  line-height: 1.25;
+}
+
+.detail-muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.detail-body {
+  display: grid;
+  gap: 10px;
+  color: #26343c;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.detail-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.detail-body pre {
+  overflow-x: auto;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.detail-source {
+  color: var(--accent-2);
 }
 
 .source-line,

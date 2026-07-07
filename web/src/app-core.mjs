@@ -15,6 +15,25 @@ export function normalizeFeedItem(raw = {}) {
   };
 }
 
+export function normalizeArticle(raw = {}) {
+  const payload = raw.article ?? raw.Article ?? raw;
+  const tags = payload.Tags ?? payload.tags ?? [];
+  return {
+    id: String(payload.ID ?? payload.id ?? ""),
+    title: String(payload.Title ?? payload.title ?? "Untitled"),
+    summary: String(payload.Summary ?? payload.summary ?? ""),
+    content: String(payload.Content ?? payload.content ?? ""),
+    author: String(payload.Author ?? payload.author ?? ""),
+    sourceName: String(payload.SourceName ?? payload.source_name ?? ""),
+    externalID: String(payload.ExternalID ?? payload.external_id ?? ""),
+    url: String(payload.URL ?? payload.url ?? ""),
+    tags: Array.isArray(tags) ? tags : [],
+    language: String(payload.Language ?? payload.language ?? ""),
+    publishedAt: String(payload.PublishedAt ?? payload.published_at ?? ""),
+    parsedAt: String(payload.ParsedAt ?? payload.parsed_at ?? ""),
+  };
+}
+
 export function buildSearchJobPayload({ query, sources, limit }) {
   const normalizedQuery = String(query ?? "").trim();
   if (!normalizedQuery) {
