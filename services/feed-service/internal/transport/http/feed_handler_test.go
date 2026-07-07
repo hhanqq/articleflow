@@ -13,8 +13,8 @@ type fakeFeedProvider struct {
 	items []feedv1.FeedItem
 }
 
-func (provider fakeFeedProvider) List(_ int) []feedv1.FeedItem {
-	return provider.items
+func (provider fakeFeedProvider) List(_ int) ([]feedv1.FeedItem, error) {
+	return provider.items, nil
 }
 
 func TestFeedHandlerReturnsItems(t *testing.T) {

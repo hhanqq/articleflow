@@ -36,7 +36,10 @@ func TestScoredHandlerStoresFeedItem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handle failed: %v", err)
 	}
-	items := feed.List(10)
+	items, err := feed.List(10)
+	if err != nil {
+		t.Fatalf("list feed: %v", err)
+	}
 	if len(items) != 1 {
 		t.Fatalf("expected 1 feed item, got %d", len(items))
 	}

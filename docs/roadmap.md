@@ -31,3 +31,5 @@ Stage 5 is implemented: ranking-service consumes `article.discovered.v1`, publis
 Stage 6 is implemented: `web/` contains a dependency-free static SPA for the vertical feed, parser job creation/status polling, API base settings, and article reactions.
 
 Stage 7 is implemented: gateway has CORS and `/metrics`, observability has a small Prometheus-style metrics registry, Dockerfiles are available for Go services and web, and `make e2e-ranking-feed` verifies the ranking/feed runtime chain.
+
+Feed persistence is available: feed-service can use memory storage by default or Postgres through `FEED_STORAGE_DRIVER=postgres`, backed by the `feed_items` migration.

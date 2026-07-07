@@ -9,7 +9,7 @@ import (
 )
 
 type FeedProvider interface {
-	List(limit int) []feedv1.FeedItem
+	List(limit int) ([]feedv1.FeedItem, error)
 }
 
 type FeedResponse struct {
@@ -23,9 +23,14 @@ func NewFeedHandler(provider FeedProvider) http.Handler {
 			return
 		}
 		limit := parseLimit(request)
+		items, err := provider.List(limit)
+		if err != nil {
+			http.Error(response, "feed failed", http.StatusBadGateway)
+			return
+		}
 		response.Header().Set("Content-Type", "application/json")
 		response.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(response).Encode(FeedResponse{Items: provider.List(limit)})
+		_ = json.NewEncoder(response).Encode(FeedResponse{Items: items})
 	})
 }
 

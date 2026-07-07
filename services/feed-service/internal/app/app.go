@@ -23,7 +23,11 @@ func (app *App) Handler() http.Handler {
 }
 
 func (app *App) Run(ctx context.Context) error {
-	feed := usecase.NewMemoryFeed()
+	feed, closeStore, err := newFeedStore(ctx, app.cfg, openDatabase)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
 	server := &http.Server{
 		Addr:    app.cfg.HTTPAddr,
 		Handler: newHTTPHandler(feed),
@@ -68,7 +72,7 @@ func (app *App) Run(ctx context.Context) error {
 	}
 }
 
-func newHTTPHandler(feed *usecase.MemoryFeed) http.Handler {
+func newHTTPHandler(feed usecase.FeedStore) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler("feed-service"))
 	mux.Handle("/api/v1/feed", httptransport.NewFeedHandler(feed))

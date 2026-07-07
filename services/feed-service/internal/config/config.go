@@ -14,6 +14,8 @@ type Config struct {
 	FeedScoredTopic         string
 	FeedConsumerGroupID     string
 	FeedConsumerMaxMessages int
+	StorageDriver           string
+	PostgresDSN             string
 }
 
 func Load() Config {
@@ -25,6 +27,8 @@ func Load() Config {
 		FeedScoredTopic:         sharedconfig.String("FEED_SCORED_TOPIC", "feed.item.scored.v1"),
 		FeedConsumerGroupID:     sharedconfig.String("FEED_CONSUMER_GROUP_ID", "feed-service"),
 		FeedConsumerMaxMessages: sharedconfig.Int("FEED_CONSUMER_MAX_MESSAGES", 0),
+		StorageDriver:           sharedconfig.String("FEED_STORAGE_DRIVER", "memory"),
+		PostgresDSN:             sharedconfig.String("FEED_POSTGRES_DSN", "postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable"),
 	}
 }
 

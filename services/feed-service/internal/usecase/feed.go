@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -9,6 +10,11 @@ import (
 	eventsv1 "github.com/hanq/articleflow/contracts/events/v1"
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 )
+
+type FeedStore interface {
+	UpsertScoredItem(event eventsv1.FeedItemScoredEvent) error
+	List(limit int) ([]feedv1.FeedItem, error)
+}
 
 type MemoryFeed struct {
 	mu       sync.RWMutex
@@ -26,7 +32,10 @@ func (feed *MemoryFeed) AddArticle(article articlev1.ArticlePreview) {
 	feed.articles = append(feed.articles, article)
 }
 
-func (feed *MemoryFeed) UpsertScoredItem(event eventsv1.FeedItemScoredEvent) {
+func (feed *MemoryFeed) UpsertScoredItem(event eventsv1.FeedItemScoredEvent) error {
+	if event.ArticleID == "" {
+		return errors.New("article id is required")
+	}
 	feed.mu.Lock()
 	defer feed.mu.Unlock()
 	feed.scored[event.ArticleID] = feedv1.FeedItem{
@@ -39,14 +48,15 @@ func (feed *MemoryFeed) UpsertScoredItem(event eventsv1.FeedItemScoredEvent) {
 		Score:       event.Score,
 		PublishedAt: event.PublishedAt,
 	}
+	return nil
 }
 
-func (feed *MemoryFeed) List(limit int) []feedv1.FeedItem {
+func (feed *MemoryFeed) List(limit int) ([]feedv1.FeedItem, error) {
 	feed.mu.RLock()
 	defer feed.mu.RUnlock()
 
 	if len(feed.scored) > 0 {
-		return feed.listScored(limit)
+		return feed.listScored(limit), nil
 	}
 
 	articles := append([]articlev1.ArticlePreview(nil), feed.articles...)
@@ -70,7 +80,7 @@ func (feed *MemoryFeed) List(limit int) []feedv1.FeedItem {
 			PublishedAt: article.PublishedAt,
 		})
 	}
-	return items
+	return items, nil
 }
 
 func (feed *MemoryFeed) listScored(limit int) []feedv1.FeedItem {

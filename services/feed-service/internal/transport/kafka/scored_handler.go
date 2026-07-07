@@ -6,14 +6,17 @@ import (
 
 	eventsv1 "github.com/hanq/articleflow/contracts/events/v1"
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
-	"github.com/hanq/articleflow/services/feed-service/internal/usecase"
 )
 
-type ScoredHandler struct {
-	feed *usecase.MemoryFeed
+type ScoredFeedStore interface {
+	UpsertScoredItem(event eventsv1.FeedItemScoredEvent) error
 }
 
-func NewScoredHandler(feed *usecase.MemoryFeed) *ScoredHandler {
+type ScoredHandler struct {
+	feed ScoredFeedStore
+}
+
+func NewScoredHandler(feed ScoredFeedStore) *ScoredHandler {
 	return &ScoredHandler{feed: feed}
 }
 
@@ -28,6 +31,5 @@ func (handler *ScoredHandler) Handle(_ context.Context, message articleflowkafka
 	if err := event.Validate(); err != nil {
 		return err
 	}
-	handler.feed.UpsertScoredItem(event)
-	return nil
+	return handler.feed.UpsertScoredItem(event)
 }

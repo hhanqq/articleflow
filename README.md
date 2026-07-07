@@ -174,6 +174,8 @@ FEED_CONSUMER_GROUP_ID=feed-service
 FEED_CONSUMER_MAX_MESSAGES=0
 ARTICLE_STORAGE_DRIVER=memory
 ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
+FEED_STORAGE_DRIVER=memory
+FEED_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
 PARSER_HTTP_ADDR=:8081
 PARSER_SERVICE_URL=http://localhost:8081
 FEED_HTTP_ADDR=:8082
@@ -269,6 +271,18 @@ Run feed-service:
 source scripts/env.sh
 cd services/feed-service
 KAFKA_BROKERS=localhost:9092 FEED_HTTP_ADDR=:8082 go run ./cmd/feed-service
+```
+
+Run feed-service with persistent Postgres storage:
+
+```bash
+source scripts/env.sh
+cd services/feed-service
+FEED_STORAGE_DRIVER=postgres \
+FEED_POSTGRES_DSN='postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable' \
+KAFKA_BROKERS=localhost:9092 \
+FEED_HTTP_ADDR=:8082 \
+go run ./cmd/feed-service
 ```
 
 Then publish articles via parser-service and read the ranked feed:

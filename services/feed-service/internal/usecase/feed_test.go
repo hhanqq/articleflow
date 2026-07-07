@@ -27,7 +27,10 @@ func TestListReturnsLatestArticlesAsFeedItems(t *testing.T) {
 	feed.AddArticle(oldArticle)
 	feed.AddArticle(newArticle)
 
-	items := feed.List(10)
+	items, err := feed.List(10)
+	if err != nil {
+		t.Fatalf("list feed: %v", err)
+	}
 
 	if len(items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(items))
@@ -45,7 +48,10 @@ func TestListAppliesLimit(t *testing.T) {
 	feed.AddArticle(articlev1.ArticlePreview{ID: "1", Title: "One", PublishedAt: time.Now().UTC()})
 	feed.AddArticle(articlev1.ArticlePreview{ID: "2", Title: "Two", PublishedAt: time.Now().UTC()})
 
-	items := feed.List(1)
+	items, err := feed.List(1)
+	if err != nil {
+		t.Fatalf("list feed: %v", err)
+	}
 
 	if len(items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(items))
@@ -54,24 +60,31 @@ func TestListAppliesLimit(t *testing.T) {
 
 func TestUpsertScoredItemSortsByRankingScore(t *testing.T) {
 	feed := NewMemoryFeed()
-	feed.UpsertScoredItem(eventsv1.FeedItemScoredEvent{
+	if err := feed.UpsertScoredItem(eventsv1.FeedItemScoredEvent{
 		ArticleID:   "low",
 		Title:       "Low score",
 		SourceName:  "habr",
 		URL:         "https://habr.com/low",
 		Score:       10,
 		PublishedAt: time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC),
-	})
-	feed.UpsertScoredItem(eventsv1.FeedItemScoredEvent{
+	}); err != nil {
+		t.Fatalf("upsert low item: %v", err)
+	}
+	if err := feed.UpsertScoredItem(eventsv1.FeedItemScoredEvent{
 		ArticleID:   "high",
 		Title:       "High score",
 		SourceName:  "habr",
 		URL:         "https://habr.com/high",
 		Score:       99,
 		PublishedAt: time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC),
-	})
+	}); err != nil {
+		t.Fatalf("upsert high item: %v", err)
+	}
 
-	items := feed.List(10)
+	items, err := feed.List(10)
+	if err != nil {
+		t.Fatalf("list feed: %v", err)
+	}
 
 	if len(items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(items))
