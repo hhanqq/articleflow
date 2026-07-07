@@ -33,6 +33,7 @@ fi
 
 echo "endpoints:"
 check_endpoint "gateway" "http://localhost:8080/healthz"
+check_endpoint "article" "http://localhost:8083/healthz"
 check_endpoint "parser" "http://localhost:8081/healthz"
 check_endpoint "feed" "http://localhost:8082/healthz"
 check_endpoint "web" "http://127.0.0.1:5173/"

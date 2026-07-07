@@ -5,7 +5,7 @@ Owns ranked feed read models.
 Runtime:
 
 - consumes Kafka topic `feed.item.scored.v1`
-- stores an in-memory ranked feed read model
+- stores a ranked feed read model in Postgres by default
 - serves `GET /api/v1/feed?limit=20` over HTTP
 - keeps the gRPC contract for the planned internal API
 

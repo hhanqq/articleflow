@@ -8,6 +8,7 @@ import (
 
 type RouterDependencies struct {
 	ServiceName      string
+	ArticleProvider  ArticleProvider
 	FeedProvider     FeedProvider
 	SearchProvider   SearchProvider
 	ParserJobClient  ParserJobClient
@@ -21,6 +22,7 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 	mux.Handle("/healthz", NewHealthHandler(dependencies.ServiceName))
 	mux.Handle("/metrics", observability.NewPrometheusHandler(dependencies.ServiceName, metrics))
 	mux.Handle("/api/v1/feed", NewFeedHandler(dependencies.FeedProvider))
+	mux.Handle("/api/v1/articles", NewArticleHandler(dependencies.ArticleProvider))
 	mux.Handle("/api/v1/search", NewSearchHandler(dependencies.SearchProvider))
 	mux.Handle("/api/v1/search/jobs", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/search/jobs/", NewSearchJobsHandler(dependencies.ParserJobClient))

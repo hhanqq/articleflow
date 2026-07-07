@@ -17,4 +17,10 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.UserConsumerGroupID != "user-service" {
 		t.Fatalf("unexpected consumer group: %s", cfg.UserConsumerGroupID)
 	}
+	if cfg.StorageDriver != "postgres" {
+		t.Fatalf("unexpected storage driver: %s", cfg.StorageDriver)
+	}
+	if cfg.PostgresDSN == "" {
+		t.Fatal("expected postgres dsn")
+	}
 }

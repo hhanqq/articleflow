@@ -8,6 +8,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ServiceName != "article-service" {
 		t.Fatalf("unexpected service name: %s", cfg.ServiceName)
 	}
+	if cfg.HTTPAddr != ":8083" {
+		t.Fatalf("unexpected HTTP addr: %s", cfg.HTTPAddr)
+	}
 	if cfg.GRPCAddr != ":9001" {
 		t.Fatalf("unexpected gRPC addr: %s", cfg.GRPCAddr)
 	}
@@ -20,7 +23,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ArticleConsumerGroupID != "article-service" {
 		t.Fatalf("unexpected consumer group: %s", cfg.ArticleConsumerGroupID)
 	}
-	if cfg.StorageDriver != "memory" {
+	if cfg.StorageDriver != "postgres" {
 		t.Fatalf("unexpected storage driver: %s", cfg.StorageDriver)
 	}
 	if cfg.ConsumerMaxMessages != 0 {

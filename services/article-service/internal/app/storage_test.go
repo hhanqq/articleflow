@@ -21,6 +21,10 @@ func (database *fakeDatabase) ExecContext(context.Context, string, ...any) (sql.
 	return nil, nil
 }
 
+func (database *fakeDatabase) QueryRowContext(context.Context, string, ...any) *sql.Row {
+	return &sql.Row{}
+}
+
 func (database *fakeDatabase) PingContext(context.Context) error {
 	database.pinged = true
 	return database.err
@@ -40,6 +44,29 @@ func TestNewArticleStoreReturnsMemoryStoreByDefault(t *testing.T) {
 	}
 	if _, ok := store.(*usecase.MemoryArticleStore); !ok {
 		t.Fatalf("expected memory store, got %T", store)
+	}
+}
+
+func TestNewArticleStoreDefaultsToPostgresStore(t *testing.T) {
+	database := &fakeDatabase{}
+	store, closeStore, err := newArticleStore(context.Background(), config.Config{
+		PostgresDSN: "postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable",
+	}, func(driverName string, dsn string) (databaseHandle, error) {
+		if driverName != "pgx" {
+			t.Fatalf("expected pgx driver, got %s", driverName)
+		}
+		if dsn == "" {
+			t.Fatal("expected dsn")
+		}
+		return database, nil
+	})
+	defer closeStore()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if _, ok := store.(*repository.PostgresArticleStore); !ok {
+		t.Fatalf("expected postgres store, got %T", store)
 	}
 }
 

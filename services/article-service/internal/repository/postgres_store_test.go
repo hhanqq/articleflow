@@ -31,6 +31,10 @@ func (execer *recordingExecer) ExecContext(_ context.Context, query string, args
 	return fakeExecResult{}, nil
 }
 
+func (execer *recordingExecer) QueryRowContext(_ context.Context, _ string, _ ...any) *sql.Row {
+	return &sql.Row{}
+}
+
 func TestPostgresArticleStoreSaveExecutesUpsert(t *testing.T) {
 	execer := &recordingExecer{}
 	store := NewPostgresArticleStore(execer)

@@ -14,6 +14,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ParserServiceURL != "http://localhost:8081" {
 		t.Fatalf("unexpected parser service URL: %s", cfg.ParserServiceURL)
 	}
+	if cfg.ArticleServiceURL != "http://localhost:8083" {
+		t.Fatalf("unexpected article service URL: %s", cfg.ArticleServiceURL)
+	}
 	if cfg.FeedServiceURL != "http://localhost:8082" {
 		t.Fatalf("unexpected feed service URL: %s", cfg.FeedServiceURL)
 	}

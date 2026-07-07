@@ -33,6 +33,9 @@ func TestIngestDiscoveredStoresArticleAndReturnsCreatedEvent(t *testing.T) {
 	if created.ArticleID == "" {
 		t.Fatal("expected created article id")
 	}
+	if created.ArticleID != "habr:habr-123" {
+		t.Fatalf("expected feed-aligned article id, got %s", created.ArticleID)
+	}
 	if created.URL != discovered.URL {
 		t.Fatalf("expected url %s, got %s", discovered.URL, created.URL)
 	}
@@ -77,6 +80,10 @@ type failingArticleStore struct{}
 
 func (failingArticleStore) Save(_ context.Context, _ articlev1.Article) (articlev1.Article, error) {
 	return articlev1.Article{}, errors.New("storage unavailable")
+}
+
+func (failingArticleStore) GetByID(_ context.Context, _ string) (articlev1.Article, bool, error) {
+	return articlev1.Article{}, false, errors.New("storage unavailable")
 }
 
 func TestIngestDiscoveredReturnsStoreError(t *testing.T) {

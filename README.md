@@ -139,7 +139,7 @@ Reaction requests are published by gateway-api to Kafka topic `user.reaction.cre
 
 ## Article Service Runtime
 
-Default mode uses in-memory storage:
+Default runtime mode uses Postgres for persistent service state:
 
 ```bash
 source scripts/env.sh
@@ -174,10 +174,12 @@ RANKING_CONSUMER_GROUP_ID=ranking-service
 RANKING_CONSUMER_MAX_MESSAGES=0
 FEED_CONSUMER_GROUP_ID=feed-service
 FEED_CONSUMER_MAX_MESSAGES=0
-ARTICLE_STORAGE_DRIVER=memory
+ARTICLE_STORAGE_DRIVER=postgres
 ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
-FEED_STORAGE_DRIVER=memory
+FEED_STORAGE_DRIVER=postgres
 FEED_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
+USER_STORAGE_DRIVER=postgres
+USER_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
 PARSER_HTTP_ADDR=:8081
 PARSER_SERVICE_URL=http://localhost:8081
 FEED_HTTP_ADDR=:8082

@@ -2,11 +2,14 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
 	"github.com/hanq/articleflow/services/article-service/internal/config"
 	"github.com/hanq/articleflow/services/article-service/internal/runtime"
+	httptransport "github.com/hanq/articleflow/services/article-service/internal/transport/http"
 	kafkatransport "github.com/hanq/articleflow/services/article-service/internal/transport/kafka"
 	"github.com/hanq/articleflow/services/article-service/internal/usecase"
 )
@@ -44,16 +47,44 @@ func (app *App) Run(ctx context.Context) error {
 	loop := runtime.NewConsumerLoop(consumer, handler, runtime.ConsumerLoopOptions{
 		MaxMessages: app.cfg.ConsumerMaxMessages,
 	})
+	var server *http.Server
+	errs := make(chan error, 2)
+	if app.cfg.HTTPAddr != "" {
+		server = &http.Server{
+			Addr:    app.cfg.HTTPAddr,
+			Handler: newHTTPHandler(app.cfg.ServiceName, store),
+		}
+		go func() {
+			errs <- server.ListenAndServe()
+		}()
+	}
+	go func() {
+		errs <- loop.Run(ctx)
+	}()
 
 	fmt.Printf(
-		"%s consuming %s from %v as %s; gRPC planned on %s\n",
+		"%s consuming %s from %v as %s; HTTP on %s; gRPC planned on %s\n",
 		app.cfg.ServiceName,
 		app.cfg.ArticleDiscoveredTopic,
 		app.cfg.BrokerList(),
 		app.cfg.ArticleConsumerGroupID,
+		app.cfg.HTTPAddr,
 		app.cfg.GRPCAddr,
 	)
-	return loop.Run(ctx)
+	select {
+	case <-ctx.Done():
+		if server != nil {
+			if err := server.Shutdown(context.Background()); err != nil {
+				return err
+			}
+		}
+		return ctx.Err()
+	case err := <-errs:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
 }
 
 func newKafkaConsumer(cfg config.Config) runtimeConsumer {
@@ -62,4 +93,11 @@ func newKafkaConsumer(cfg config.Config) runtimeConsumer {
 		cfg.ArticleDiscoveredTopic,
 		cfg.ArticleConsumerGroupID,
 	)
+}
+
+func newHTTPHandler(serviceName string, reader httptransport.ArticleReader) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/healthz", httptransport.NewHealthHandler(serviceName))
+	mux.Handle("/api/v1/articles", httptransport.NewArticleHandler(reader))
+	return mux
 }

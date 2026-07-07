@@ -27,7 +27,10 @@ func openDatabase(driverName string, dsn string) (databaseHandle, error) {
 
 func newFeedStore(ctx context.Context, cfg config.Config, opener databaseOpener) (usecase.FeedStore, func() error, error) {
 	driver := strings.ToLower(strings.TrimSpace(cfg.StorageDriver))
-	if driver == "" || driver == "memory" {
+	if driver == "" {
+		driver = "postgres"
+	}
+	if driver == "memory" {
 		return usecase.NewMemoryFeed(), noopClose, nil
 	}
 	if driver != "postgres" {

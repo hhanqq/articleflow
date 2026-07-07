@@ -17,7 +17,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.FeedScoredTopic != "feed.item.scored.v1" {
 		t.Fatalf("unexpected scored topic: %s", cfg.FeedScoredTopic)
 	}
-	if cfg.StorageDriver != "memory" {
+	if cfg.StorageDriver != "postgres" {
 		t.Fatalf("unexpected storage driver: %s", cfg.StorageDriver)
 	}
 	if cfg.PostgresDSN == "" {

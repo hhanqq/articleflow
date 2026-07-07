@@ -21,6 +21,30 @@ func TestNewFeedStoreDefaultsToMemory(t *testing.T) {
 	}
 }
 
+func TestNewFeedStoreDefaultsToPostgres(t *testing.T) {
+	opener := func(driverName string, dsn string) (databaseHandle, error) {
+		if driverName != "pgx" {
+			t.Fatalf("expected pgx driver, got %s", driverName)
+		}
+		if dsn == "" {
+			t.Fatal("expected dsn")
+		}
+		return fakeDatabase{}, nil
+	}
+
+	store, closeStore, err := newFeedStore(context.Background(), config.Config{
+		PostgresDSN: "postgres://articleflow",
+	}, opener)
+	if err != nil {
+		t.Fatalf("new feed store: %v", err)
+	}
+	defer closeStore()
+
+	if store == nil {
+		t.Fatal("expected store")
+	}
+}
+
 func TestNewFeedStoreRejectsUnsupportedDriver(t *testing.T) {
 	_, _, err := newFeedStore(context.Background(), config.Config{StorageDriver: "unknown"}, nil)
 

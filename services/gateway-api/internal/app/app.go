@@ -7,6 +7,7 @@ import (
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
+	articleclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/article"
 	feedclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/feed"
 	parserclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/parser"
 	"github.com/hanq/articleflow/services/gateway-api/internal/config"
@@ -26,6 +27,7 @@ func (app *App) Handler() http.Handler {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
 	return httptransport.NewRouter(httptransport.RouterDependencies{
 		ServiceName:      app.cfg.ServiceName,
+		ArticleProvider:  articleclient.New(app.cfg.ArticleServiceURL, http.DefaultClient),
 		FeedProvider:     feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
 		SearchProvider:   emptySearchProvider{},
 		ParserJobClient:  parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient),

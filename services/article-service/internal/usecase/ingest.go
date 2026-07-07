@@ -19,6 +19,7 @@ type MemoryArticleStore struct {
 
 type ArticleStore interface {
 	Save(ctx context.Context, article articlev1.Article) (articlev1.Article, error)
+	GetByID(ctx context.Context, id string) (articlev1.Article, bool, error)
 }
 
 func NewMemoryArticleStore() *MemoryArticleStore {
@@ -46,6 +47,13 @@ func (store *MemoryArticleStore) FindByURL(url string) (articlev1.Article, bool)
 	return article, ok
 }
 
+func (store *MemoryArticleStore) GetByID(_ context.Context, id string) (articlev1.Article, bool, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	article, ok := store.byID[id]
+	return article, ok, nil
+}
+
 type IngestUsecase struct {
 	store ArticleStore
 }
@@ -65,7 +73,7 @@ func (usecase *IngestUsecase) IngestDiscovered(ctx context.Context, event events
 	}
 
 	article := articlev1.Article{
-		ID:          stableArticleID(event.URL),
+		ID:          articleID(event),
 		SourceName:  event.SourceName,
 		ExternalID:  event.ExternalID,
 		URL:         event.URL,
@@ -94,7 +102,14 @@ func (usecase *IngestUsecase) IngestDiscovered(ctx context.Context, event events
 	}, nil
 }
 
-func stableArticleID(url string) string {
-	sum := sha1.Sum([]byte(url))
+func articleID(event eventsv1.ArticleDiscoveredEvent) string {
+	if event.SourceName != "" && event.ExternalID != "" {
+		return event.SourceName + ":" + event.ExternalID
+	}
+	return stableArticleID(event.URL)
+}
+
+func stableArticleID(value string) string {
+	sum := sha1.Sum([]byte(value))
 	return "article-" + hex.EncodeToString(sum[:8])
 }

@@ -21,6 +21,9 @@ INSERT INTO articles (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
 ON CONFLICT (url) DO UPDATE SET
+    id = EXCLUDED.id,
+    source_name = EXCLUDED.source_name,
+    external_id = EXCLUDED.external_id,
     title = EXCLUDED.title,
     summary = EXCLUDED.summary,
     content = EXCLUDED.content,
@@ -47,4 +50,3 @@ ON CONFLICT (url) DO UPDATE SET
 	}
 	return query, args
 }
-

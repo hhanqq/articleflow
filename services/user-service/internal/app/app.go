@@ -9,7 +9,6 @@ import (
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
 	"github.com/hanq/articleflow/services/user-service/internal/config"
 	kafkatransport "github.com/hanq/articleflow/services/user-service/internal/transport/kafka"
-	"github.com/hanq/articleflow/services/user-service/internal/usecase"
 )
 
 type App struct{ cfg config.Config }
@@ -17,7 +16,11 @@ type App struct{ cfg config.Config }
 func New(cfg config.Config) *App { return &App{cfg: cfg} }
 
 func (app *App) Run(ctx context.Context) error {
-	reactions := usecase.NewMemoryReactions()
+	reactions, closeStore, err := newReactionStore(ctx, app.cfg, openDatabase)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
 	consumer := articleflowkafka.NewReaderConsumer(
 		app.cfg.BrokerList(),
 		app.cfg.UserReactionTopic,

@@ -23,7 +23,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker compose -f deployments/docker-compose.yml up -d kafka zookeeper >/dev/null
+docker compose -f deployments/docker-compose.yml up -d kafka zookeeper postgres >/dev/null
+for _ in {1..30}; do
+  if docker compose -f deployments/docker-compose.yml exec -T postgres pg_isready -U articleflow -d articleflow >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+for migration in deployments/postgres/migrations/*.sql; do
+  docker compose -f deployments/docker-compose.yml exec -T postgres psql -U articleflow -d articleflow <"$migration" >/dev/null
+done
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic article.discovered.v1 --partitions 1 --replication-factor 1 >/dev/null
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic feed.item.scored.v1 --partitions 1 --replication-factor 1 >/dev/null
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic user.reaction.created.v1 --partitions 1 --replication-factor 1 >/dev/null
@@ -32,6 +41,8 @@ docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 -
   cd services/feed-service
   KAFKA_BROKERS=localhost:9092 \
     FEED_HTTP_ADDR=:18082 \
+    FEED_STORAGE_DRIVER=postgres \
+    FEED_POSTGRES_DSN='postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable' \
     FEED_CONSUMER_GROUP_ID="feed-${RUN_ID}" \
     go run ./cmd/feed-service
 ) >"$FEED_LOG" 2>&1 &

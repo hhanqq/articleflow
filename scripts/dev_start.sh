@@ -21,7 +21,19 @@ if [[ -f "$PID_FILE" ]]; then
 fi
 : >"$PID_FILE"
 
-docker compose -f deployments/docker-compose.yml up -d kafka zookeeper >/dev/null
+docker compose -f deployments/docker-compose.yml up -d kafka zookeeper postgres >/dev/null
+
+for _ in {1..30}; do
+  if docker compose -f deployments/docker-compose.yml exec -T postgres pg_isready -U articleflow -d articleflow >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+for migration in deployments/postgres/migrations/*.sql; do
+  docker compose -f deployments/docker-compose.yml exec -T postgres psql -U articleflow -d articleflow <"$migration" >/dev/null
+done
+
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic article.discovered.v1 --partitions 1 --replication-factor 1 >/dev/null
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic feed.item.scored.v1 --partitions 1 --replication-factor 1 >/dev/null
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic user.reaction.created.v1 --partitions 1 --replication-factor 1 >/dev/null
@@ -48,6 +60,7 @@ build_service() {
 }
 
 build_service parser-service
+build_service article-service
 build_service ranking-service
 build_service feed-service
 build_service user-service
@@ -59,6 +72,14 @@ start_service parser-service "$PROJECT_ROOT/services/parser-service" env \
   HABR_REQUEST_DELAY_MS=500 \
   "$BIN_DIR/parser-service"
 
+start_service article-service "$PROJECT_ROOT/services/article-service" env \
+  KAFKA_BROKERS=localhost:9092 \
+  ARTICLE_HTTP_ADDR=:8083 \
+  ARTICLE_STORAGE_DRIVER=postgres \
+  ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable \
+  ARTICLE_CONSUMER_GROUP_ID=article-service-dev \
+  "$BIN_DIR/article-service"
+
 start_service ranking-service "$PROJECT_ROOT/services/ranking-service" env \
   KAFKA_BROKERS=localhost:9092 \
   RANKING_CONSUMER_GROUP_ID=ranking-service-dev \
@@ -68,16 +89,21 @@ start_service ranking-service "$PROJECT_ROOT/services/ranking-service" env \
 start_service feed-service "$PROJECT_ROOT/services/feed-service" env \
   KAFKA_BROKERS=localhost:9092 \
   FEED_HTTP_ADDR=:8082 \
+  FEED_STORAGE_DRIVER=postgres \
+  FEED_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable \
   FEED_CONSUMER_GROUP_ID=feed-service-dev \
   "$BIN_DIR/feed-service"
 
 start_service user-service "$PROJECT_ROOT/services/user-service" env \
   KAFKA_BROKERS=localhost:9092 \
+  USER_STORAGE_DRIVER=postgres \
+  USER_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable \
   USER_CONSUMER_GROUP_ID=user-service-dev \
   "$BIN_DIR/user-service"
 
 start_service gateway-api "$PROJECT_ROOT/services/gateway-api" env \
   GATEWAY_HTTP_ADDR=:8080 \
+  ARTICLE_SERVICE_URL=http://localhost:8083 \
   PARSER_SERVICE_URL=http://localhost:8081 \
   FEED_SERVICE_URL=http://localhost:8082 \
   "$BIN_DIR/gateway-api"
@@ -105,6 +131,7 @@ wait_for() {
 }
 
 wait_for parser-service "http://localhost:8081/healthz"
+wait_for article-service "http://localhost:8083/healthz"
 wait_for feed-service "http://localhost:8082/healthz"
 wait_for gateway-api "http://localhost:8080/healthz"
 wait_for web "http://127.0.0.1:5173/"
@@ -112,4 +139,5 @@ wait_for web "http://127.0.0.1:5173/"
 echo "dev stack started"
 echo "web:     http://127.0.0.1:5173"
 echo "gateway: http://localhost:8080"
+echo "article: http://localhost:8083"
 echo "logs:    $LOG_DIR"
