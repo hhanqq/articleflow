@@ -35,4 +35,3 @@ func parseLimit(request *http.Request) int {
 	}
 	return limit
 }
-

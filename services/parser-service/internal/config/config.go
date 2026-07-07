@@ -9,6 +9,7 @@ import (
 type Config struct {
 	ServiceName        string
 	KafkaBrokers       string
+	HTTPAddr           string
 	HabrBaseURL        string
 	HabrMaxAttempts    int
 	HabrRetryDelayMS   int
@@ -19,6 +20,7 @@ func Load() Config {
 	return Config{
 		ServiceName:        "parser-service",
 		KafkaBrokers:       sharedconfig.String("KAFKA_BROKERS", "localhost:9092"),
+		HTTPAddr:           sharedconfig.String("PARSER_HTTP_ADDR", ":8081"),
 		HabrBaseURL:        sharedconfig.String("HABR_BASE_URL", "https://habr.com"),
 		HabrMaxAttempts:    sharedconfig.Int("HABR_MAX_ATTEMPTS", 3),
 		HabrRetryDelayMS:   sharedconfig.Int("HABR_RETRY_DELAY_MS", 500),

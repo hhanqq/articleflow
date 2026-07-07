@@ -8,6 +8,7 @@ import (
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 	userv1 "github.com/hanq/articleflow/contracts/user/v1"
+	parserclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/parser"
 	"github.com/hanq/articleflow/services/gateway-api/internal/config"
 	httptransport "github.com/hanq/articleflow/services/gateway-api/internal/transport/http"
 )
@@ -25,6 +26,7 @@ func (app *App) Handler() http.Handler {
 		ServiceName:      app.cfg.ServiceName,
 		FeedProvider:     emptyFeedProvider{},
 		SearchProvider:   emptySearchProvider{},
+		ParserJobClient:  parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient),
 		ReactionRecorder: noopReactionRecorder{},
 	})
 }

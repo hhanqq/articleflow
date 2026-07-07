@@ -67,9 +67,11 @@ deployments/postgres/init/002_articles.sql
 Stage 3 Habr runtime search is available through `services/parser-service/cmd/search-habr`.
 It searches Habr, fetches each full article page, publishes `article.discovered.v1` with full `content`, and publishes `parser.job.failed.v1` when a parser source fails.
 
+Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints.
+
 ## Gateway API
 
-Default address: `:8080`.
+Default address: `:8080`. Parser-service upstream defaults to `http://localhost:8081`.
 
 ```bash
 source scripts/env.sh
@@ -83,6 +85,8 @@ Available REST endpoints:
 GET  /healthz
 GET  /api/v1/feed?limit=20
 POST /api/v1/search
+POST /api/v1/search/jobs
+GET  /api/v1/search/jobs/{id}
 POST /api/v1/reactions
 ```
 
@@ -92,6 +96,20 @@ Example search request:
 curl -X POST http://localhost:8080/api/v1/search \
   -H 'Content-Type: application/json' \
   -d '{"query":"go kafka","sources":["habr"],"limit":10}'
+```
+
+Example async parser job through gateway:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/search/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"go kafka","sources":["habr"],"limit":5}'
+```
+
+Check job status:
+
+```bash
+curl http://localhost:8080/api/v1/search/jobs/<job-id>
 ```
 
 Example reaction request:
@@ -136,6 +154,8 @@ ARTICLE_CONSUMER_GROUP_ID=article-service
 ARTICLE_CONSUMER_MAX_MESSAGES=0
 ARTICLE_STORAGE_DRIVER=memory
 ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
+PARSER_HTTP_ADDR=:8081
+PARSER_SERVICE_URL=http://localhost:8081
 ```
 
 Publish a sample `article.discovered.v1` event:
@@ -160,6 +180,31 @@ The same command is exposed via Make:
 
 ```bash
 QUERY="go kafka" LIMIT=5 make search-habr
+```
+
+## Parser Service HTTP API
+
+Default address: `:8081`.
+
+```bash
+source scripts/env.sh
+cd services/parser-service
+PARSER_HTTP_ADDR=:8081 KAFKA_BROKERS=localhost:9092 go run ./cmd/parser-service
+```
+
+Available parser job endpoints:
+
+```text
+POST /api/v1/parser/jobs
+GET  /api/v1/parser/jobs/{id}
+```
+
+Example:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/parser/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"go kafka","sources":["habr"],"limit":5}'
 ```
 
 Run the local e2e check for the first backend chain:

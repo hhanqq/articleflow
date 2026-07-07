@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+const (
+	ParserJobStatusQueued    = "queued"
+	ParserJobStatusRunning   = "running"
+	ParserJobStatusCompleted = "completed"
+	ParserJobStatusFailed    = "failed"
+)
+
 type SearchQuery struct {
 	Text     string
 	Sources  []string
@@ -51,8 +58,11 @@ type ArticleCandidate struct {
 }
 
 type ParserJob struct {
-	ID        string
-	Query     SearchQuery
-	Status    string
-	CreatedAt time.Time
+	ID              string
+	Query           SearchQuery
+	Status          string
+	Error           string
+	CandidatesCount int
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }

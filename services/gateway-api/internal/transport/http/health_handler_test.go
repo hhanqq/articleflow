@@ -19,4 +19,3 @@ func TestHealthHandler(t *testing.T) {
 		t.Fatal("expected non-empty response body")
 	}
 }
-

@@ -32,7 +32,10 @@ message ParserJob {
   string id = 1;
   SearchQuery query = 2;
   string status = 3;
-  google.protobuf.Timestamp created_at = 4;
+  string error = 4;
+  int32 candidates_count = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
 service ParserService {

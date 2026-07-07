@@ -43,3 +43,31 @@ func TestArticleCandidateCarriesFullContent(t *testing.T) {
 		t.Fatalf("unexpected content: %s", candidate.Content)
 	}
 }
+
+func TestParserJobStatuses(t *testing.T) {
+	if ParserJobStatusQueued != "queued" {
+		t.Fatalf("unexpected queued status: %s", ParserJobStatusQueued)
+	}
+	if ParserJobStatusRunning != "running" {
+		t.Fatalf("unexpected running status: %s", ParserJobStatusRunning)
+	}
+	if ParserJobStatusCompleted != "completed" {
+		t.Fatalf("unexpected completed status: %s", ParserJobStatusCompleted)
+	}
+	if ParserJobStatusFailed != "failed" {
+		t.Fatalf("unexpected failed status: %s", ParserJobStatusFailed)
+	}
+}
+
+func TestParserJobCarriesExecutionResult(t *testing.T) {
+	job := ParserJob{
+		ID:              "job-1",
+		Status:          ParserJobStatusCompleted,
+		CandidatesCount: 3,
+		Error:           "",
+	}
+
+	if job.CandidatesCount != 3 {
+		t.Fatalf("unexpected candidates count: %d", job.CandidatesCount)
+	}
+}

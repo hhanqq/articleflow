@@ -49,4 +49,3 @@ func TestFeedHandlerReturnsJSONFeed(t *testing.T) {
 		t.Fatalf("unexpected article id: %s", payload.Items[0].ArticleID)
 	}
 }
-

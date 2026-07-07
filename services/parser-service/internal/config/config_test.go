@@ -11,6 +11,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.KafkaBrokers != "localhost:9092" {
 		t.Fatalf("unexpected Kafka brokers: %s", cfg.KafkaBrokers)
 	}
+	if cfg.HTTPAddr != ":8081" {
+		t.Fatalf("unexpected HTTP addr: %s", cfg.HTTPAddr)
+	}
 	if cfg.HabrBaseURL != "https://habr.com" {
 		t.Fatalf("unexpected Habr base URL: %s", cfg.HabrBaseURL)
 	}

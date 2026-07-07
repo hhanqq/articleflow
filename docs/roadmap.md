@@ -22,4 +22,6 @@ Kafka article.discovered.v1
   -> Postgres article store
 ```
 
-Stage 3 is in progress: `parser-service/cmd/search-habr` can search Habr through RSS, fetch full article HTML pages, publish full-content `article.discovered.v1` events, and publish `parser.job.failed.v1` on parser source failure.
+Stage 3 is implemented: `parser-service/cmd/search-habr` can search Habr through RSS, fetch full article HTML pages, publish full-content `article.discovered.v1` events, and publish `parser.job.failed.v1` on parser source failure.
+
+Stage 4 is implemented: parser jobs can be created and checked through parser-service HTTP endpoints and gateway search job proxy endpoints.
