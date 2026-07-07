@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/hanq/articleflow/contracts/gen/go/user/v1;userv1pb";
+
+import "google/protobuf/timestamp.proto";
+
+enum ReactionType {
+  REACTION_TYPE_UNSPECIFIED = 0;
+  REACTION_TYPE_LIKE = 1;
+  REACTION_TYPE_DISLIKE = 2;
+  REACTION_TYPE_SKIP = 3;
+  REACTION_TYPE_SAVE = 4;
+  REACTION_TYPE_OPEN = 5;
+}
+
+message UserReaction {
+  string user_id = 1;
+  string article_id = 2;
+  ReactionType type = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+service UserService {
+  rpc CreateReaction(CreateReactionRequest) returns (CreateReactionResponse);
+}
+
+message CreateReactionRequest {
+  UserReaction reaction = 1;
+}
+
+message CreateReactionResponse {
+  bool accepted = 1;
+}
+

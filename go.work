@@ -1,0 +1,14 @@
+go 1.25.6
+
+use (
+	./contracts
+	./packages/config
+	./packages/kafka
+	./packages/observability
+	./services/article-service
+	./services/feed-service
+	./services/gateway-api
+	./services/parser-service
+	./services/ranking-service
+	./services/user-service
+)

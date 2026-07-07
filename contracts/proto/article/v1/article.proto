@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package article.v1;
+
+option go_package = "github.com/hanq/articleflow/contracts/gen/go/article/v1;articlev1pb";
+
+import "google/protobuf/timestamp.proto";
+
+message Article {
+  string id = 1;
+  string source_id = 2;
+  string source_name = 3;
+  string external_id = 4;
+  string url = 5;
+  string title = 6;
+  string summary = 7;
+  string content = 8;
+  string author = 9;
+  repeated string tags = 10;
+  string language = 11;
+  google.protobuf.Timestamp published_at = 12;
+  google.protobuf.Timestamp parsed_at = 13;
+}
+
+message ArticlePreview {
+  string id = 1;
+  string source_name = 2;
+  string url = 3;
+  string title = 4;
+  string summary = 5;
+  repeated string tags = 6;
+  google.protobuf.Timestamp published_at = 7;
+}
+
+service ArticleService {
+  rpc GetArticle(GetArticleRequest) returns (GetArticleResponse);
+}
+
+message GetArticleRequest {
+  string id = 1;
+}
+
+message GetArticleResponse {
+  Article article = 1;
+}
+

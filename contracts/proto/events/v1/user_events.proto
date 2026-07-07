@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package events.v1;
+
+option go_package = "github.com/hanq/articleflow/contracts/gen/go/events/v1;eventsv1pb";
+
+import "google/protobuf/timestamp.proto";
+
+message UserReactionCreatedEvent {
+  string user_id = 1;
+  string article_id = 2;
+  string type = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+

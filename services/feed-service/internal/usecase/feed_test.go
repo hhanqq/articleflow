@@ -1,0 +1,53 @@
+package usecase
+
+import (
+	"testing"
+	"time"
+
+	articlev1 "github.com/hanq/articleflow/contracts/article/v1"
+)
+
+func TestListReturnsLatestArticlesAsFeedItems(t *testing.T) {
+	feed := NewMemoryFeed()
+	oldArticle := articlev1.ArticlePreview{
+		ID:          "old",
+		Title:       "Old article",
+		SourceName:  "habr",
+		URL:         "https://habr.com/old",
+		PublishedAt: time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC),
+	}
+	newArticle := articlev1.ArticlePreview{
+		ID:          "new",
+		Title:       "New article",
+		SourceName:  "habr",
+		URL:         "https://habr.com/new",
+		PublishedAt: time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
+	}
+	feed.AddArticle(oldArticle)
+	feed.AddArticle(newArticle)
+
+	items := feed.List(10)
+
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+	if items[0].ArticleID != "new" {
+		t.Fatalf("expected newest article first, got %s", items[0].ArticleID)
+	}
+	if items[0].Score <= items[1].Score {
+		t.Fatalf("expected newer article score to be higher")
+	}
+}
+
+func TestListAppliesLimit(t *testing.T) {
+	feed := NewMemoryFeed()
+	feed.AddArticle(articlev1.ArticlePreview{ID: "1", Title: "One", PublishedAt: time.Now().UTC()})
+	feed.AddArticle(articlev1.ArticlePreview{ID: "2", Title: "Two", PublishedAt: time.Now().UTC()})
+
+	items := feed.List(1)
+
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+}
+

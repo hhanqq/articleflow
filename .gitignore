@@ -1,0 +1,10 @@
+.bin/
+.cache/
+.go/
+.idea/
+.vscode/
+.env
+*.log
+tmp/
+dist/
+
