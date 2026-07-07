@@ -39,8 +39,11 @@ Habr RSS XML / Habr HTML search
   -> parser-service/internal/parsers/habr
   -> parser-service/internal/usecase.DiscoveredPublisher
   -> Kafka topic article.discovered.v1
-  -> article-service/internal/transport/kafka.DiscoveredHandler
-  -> article-service/internal/usecase.IngestUsecase
+  -> article-service/internal/transport/kafka.DiscoveredHandler -> article storage
+  -> ranking-service/internal/transport/kafka.DiscoveredHandler
+  -> Kafka topic feed.item.scored.v1
+  -> feed-service/internal/transport/kafka.ScoredHandler
+  -> gateway-api /api/v1/feed
 ```
 
 Kafka adapters live in `packages/kafka`. Unit tests use the in-memory producer; runtime wiring uses `segmentio/kafka-go`.
@@ -69,9 +72,19 @@ It searches Habr, fetches each full article page, publishes `article.discovered.
 
 Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints.
 
+Stage 5 ranking/feed pipeline is available through Kafka and HTTP:
+
+```text
+article.discovered.v1
+  -> ranking-service scores article
+  -> feed.item.scored.v1
+  -> feed-service stores ranked feed read model
+  -> gateway-api proxies GET /api/v1/feed to feed-service
+```
+
 ## Gateway API
 
-Default address: `:8080`. Parser-service upstream defaults to `http://localhost:8081`.
+Default address: `:8080`. Parser-service upstream defaults to `http://localhost:8081`; feed-service upstream defaults to `http://localhost:8082`.
 
 ```bash
 source scripts/env.sh
@@ -152,10 +165,17 @@ KAFKA_BROKERS=localhost:9092
 ARTICLE_DISCOVERED_TOPIC=article.discovered.v1
 ARTICLE_CONSUMER_GROUP_ID=article-service
 ARTICLE_CONSUMER_MAX_MESSAGES=0
+FEED_SCORED_TOPIC=feed.item.scored.v1
+RANKING_CONSUMER_GROUP_ID=ranking-service
+RANKING_CONSUMER_MAX_MESSAGES=0
+FEED_CONSUMER_GROUP_ID=feed-service
+FEED_CONSUMER_MAX_MESSAGES=0
 ARTICLE_STORAGE_DRIVER=memory
 ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
 PARSER_HTTP_ADDR=:8081
 PARSER_SERVICE_URL=http://localhost:8081
+FEED_HTTP_ADDR=:8082
+FEED_SERVICE_URL=http://localhost:8082
 ```
 
 Publish a sample `article.discovered.v1` event:
@@ -214,6 +234,40 @@ make e2e-article-chain
 ```
 
 This command starts Kafka/Postgres via Docker Compose, applies the article schema, runs `article-service` for one Kafka message, publishes a sample discovered article, and verifies the row in Postgres.
+
+## Ranking And Feed Runtime
+
+Start infrastructure:
+
+```bash
+docker compose -f deployments/docker-compose.yml up -d kafka zookeeper
+docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic article.discovered.v1 --partitions 1 --replication-factor 1
+docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic feed.item.scored.v1 --partitions 1 --replication-factor 1
+```
+
+Run ranking-service:
+
+```bash
+source scripts/env.sh
+cd services/ranking-service
+KAFKA_BROKERS=localhost:9092 go run ./cmd/ranking-service
+```
+
+Run feed-service:
+
+```bash
+source scripts/env.sh
+cd services/feed-service
+KAFKA_BROKERS=localhost:9092 FEED_HTTP_ADDR=:8082 go run ./cmd/feed-service
+```
+
+Then publish articles via parser-service and read the ranked feed:
+
+```bash
+QUERY="go kafka" LIMIT=3 make search-habr
+curl http://localhost:8082/api/v1/feed?limit=10
+curl http://localhost:8080/api/v1/feed?limit=10
+```
 
 ## Local Commands
 

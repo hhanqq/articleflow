@@ -21,8 +21,9 @@ Articleflow is a microservice-first system for article discovery and personalize
 
 ```text
 parser-service -> article.discovered.v1 -> article-service
-article-service -> article.created.v1 -> feed-service/ranking-service
-gateway-api -> feed-service gRPC -> frontend feed
+parser-service -> article.discovered.v1 -> ranking-service
+ranking-service -> feed.item.scored.v1 -> feed-service
+gateway-api -> feed-service HTTP -> frontend feed
 gateway-api -> user-service gRPC -> user.reaction.created.v1
 ```
 
@@ -35,4 +36,3 @@ Go module downloads and tool binaries are stored inside project-local directorie
 .cache/
 .bin/
 ```
-

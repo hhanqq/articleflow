@@ -1,10 +1,17 @@
 # gateway-api
 
-Public REST/JSON API for frontend clients. It will call internal services through gRPC.
+Public REST/JSON API for frontend clients.
+
+Runtime:
+
+- proxies parser jobs to parser-service
+- proxies `GET /api/v1/feed` to feed-service
+- accepts reaction requests
 
 Run:
 
 ```bash
+source ../../scripts/env.sh
+PARSER_SERVICE_URL=http://localhost:8081 FEED_SERVICE_URL=http://localhost:8082 \
 go run ./cmd/gateway-api
 ```
-

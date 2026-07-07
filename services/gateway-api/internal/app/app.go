@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 	userv1 "github.com/hanq/articleflow/contracts/user/v1"
+	feedclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/feed"
 	parserclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/parser"
 	"github.com/hanq/articleflow/services/gateway-api/internal/config"
 	httptransport "github.com/hanq/articleflow/services/gateway-api/internal/transport/http"
@@ -24,7 +24,7 @@ func New(cfg config.Config) *App {
 func (app *App) Handler() http.Handler {
 	return httptransport.NewRouter(httptransport.RouterDependencies{
 		ServiceName:      app.cfg.ServiceName,
-		FeedProvider:     emptyFeedProvider{},
+		FeedProvider:     feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
 		SearchProvider:   emptySearchProvider{},
 		ParserJobClient:  parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient),
 		ReactionRecorder: noopReactionRecorder{},
@@ -54,12 +54,6 @@ func (app *App) Run(ctx context.Context) error {
 		}
 		return err
 	}
-}
-
-type emptyFeedProvider struct{}
-
-func (emptyFeedProvider) List(_ int) []feedv1.FeedItem {
-	return nil
 }
 
 type emptySearchProvider struct{}

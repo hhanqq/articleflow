@@ -12,6 +12,9 @@ func TestArticleEventTopics(t *testing.T) {
 	if TopicArticleCreated != "article.created.v1" {
 		t.Fatalf("unexpected created topic: %s", TopicArticleCreated)
 	}
+	if TopicFeedItemScored != "feed.item.scored.v1" {
+		t.Fatalf("unexpected feed scored topic: %s", TopicFeedItemScored)
+	}
 }
 
 func TestArticleDiscoveredEventValidate(t *testing.T) {
@@ -49,5 +52,34 @@ func TestArticleDiscoveredEventValidateRequiresURL(t *testing.T) {
 
 	if err := event.Validate(); err == nil {
 		t.Fatal("expected validation error for empty URL")
+	}
+}
+
+func TestFeedItemScoredEventValidate(t *testing.T) {
+	event := FeedItemScoredEvent{
+		ArticleID:   "habr:123",
+		SourceName:  "habr",
+		URL:         "https://habr.com/ru/articles/123/",
+		Title:       "Go Kafka",
+		Score:       42.5,
+		PublishedAt: time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
+		ScoredAt:    time.Now().UTC(),
+	}
+
+	if err := event.Validate(); err != nil {
+		t.Fatalf("expected valid scored event, got error: %v", err)
+	}
+}
+
+func TestFeedItemScoredEventValidateRequiresArticleID(t *testing.T) {
+	event := FeedItemScoredEvent{
+		SourceName: "habr",
+		URL:        "https://habr.com/ru/articles/123/",
+		Title:      "Go Kafka",
+		ScoredAt:   time.Now().UTC(),
+	}
+
+	if err := event.Validate(); err == nil {
+		t.Fatal("expected validation error for empty article id")
 	}
 }

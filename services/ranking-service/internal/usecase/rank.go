@@ -1,12 +1,15 @@
 package usecase
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"time"
 
+	eventsv1 "github.com/hanq/articleflow/contracts/events/v1"
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
+	userv1 "github.com/hanq/articleflow/contracts/user/v1"
 )
 
 type Ranker struct {
@@ -27,6 +30,30 @@ func (ranker *Ranker) Rank(query parserv1.SearchQuery, items []feedv1.FeedItem) 
 		return ranked[i].Score > ranked[j].Score
 	})
 	return ranked
+}
+
+func (ranker *Ranker) RankDiscovered(event eventsv1.ArticleDiscoveredEvent) eventsv1.FeedItemScoredEvent {
+	item := feedv1.FeedItem{
+		ArticleID:   articleID(event),
+		Title:       event.Title,
+		Summary:     event.Summary,
+		SourceName:  event.SourceName,
+		URL:         event.URL,
+		Tags:        event.Tags,
+		PublishedAt: event.PublishedAt,
+	}
+	score := ranker.score(nil, item)
+	return eventsv1.FeedItemScoredEvent{
+		ArticleID:   item.ArticleID,
+		SourceName:  item.SourceName,
+		URL:         item.URL,
+		Title:       item.Title,
+		Summary:     item.Summary,
+		Tags:        append([]string(nil), item.Tags...),
+		Score:       score,
+		PublishedAt: item.PublishedAt,
+		ScoredAt:    ranker.now().UTC(),
+	}
 }
 
 func (ranker *Ranker) score(terms []string, item feedv1.FeedItem) float64 {
@@ -50,3 +77,37 @@ func (ranker *Ranker) score(terms []string, item feedv1.FeedItem) float64 {
 	return score
 }
 
+func articleID(event eventsv1.ArticleDiscoveredEvent) string {
+	if event.SourceName != "" && event.ExternalID != "" {
+		return fmt.Sprintf("%s:%s", event.SourceName, event.ExternalID)
+	}
+	return event.URL
+}
+
+type ReactionScorer struct{}
+
+func NewReactionScorer() ReactionScorer {
+	return ReactionScorer{}
+}
+
+func (ReactionScorer) Apply(baseScore float64, reactions []userv1.UserReaction) float64 {
+	score := baseScore
+	for _, reaction := range reactions {
+		switch reaction.Type {
+		case userv1.ReactionLike:
+			score += 4
+		case userv1.ReactionSave:
+			score += 8
+		case userv1.ReactionOpen:
+			score += 2
+		case userv1.ReactionSkip:
+			score -= 3
+		case userv1.ReactionDislike:
+			score -= 8
+		}
+	}
+	if score < 0 {
+		return 0
+	}
+	return score
+}

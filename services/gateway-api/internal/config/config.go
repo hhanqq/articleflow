@@ -6,6 +6,7 @@ type Config struct {
 	ServiceName      string
 	HTTPAddr         string
 	ParserServiceURL string
+	FeedServiceURL   string
 }
 
 func Load() Config {
@@ -13,5 +14,6 @@ func Load() Config {
 		ServiceName:      "gateway-api",
 		HTTPAddr:         sharedconfig.String("GATEWAY_HTTP_ADDR", ":8080"),
 		ParserServiceURL: sharedconfig.String("PARSER_SERVICE_URL", "http://localhost:8081"),
+		FeedServiceURL:   sharedconfig.String("FEED_SERVICE_URL", "http://localhost:8082"),
 	}
 }

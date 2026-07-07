@@ -37,3 +37,15 @@ message ParserJobFailedEvent {
   string error = 4;
   google.protobuf.Timestamp failed_at = 5;
 }
+
+message FeedItemScoredEvent {
+  string article_id = 1;
+  string source_name = 2;
+  string url = 3;
+  string title = 4;
+  string summary = 5;
+  repeated string tags = 6;
+  double score = 7;
+  google.protobuf.Timestamp published_at = 8;
+  google.protobuf.Timestamp scored_at = 9;
+}

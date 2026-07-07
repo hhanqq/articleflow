@@ -5,6 +5,7 @@ import (
 	"time"
 
 	articlev1 "github.com/hanq/articleflow/contracts/article/v1"
+	eventsv1 "github.com/hanq/articleflow/contracts/events/v1"
 )
 
 func TestListReturnsLatestArticlesAsFeedItems(t *testing.T) {
@@ -51,3 +52,31 @@ func TestListAppliesLimit(t *testing.T) {
 	}
 }
 
+func TestUpsertScoredItemSortsByRankingScore(t *testing.T) {
+	feed := NewMemoryFeed()
+	feed.UpsertScoredItem(eventsv1.FeedItemScoredEvent{
+		ArticleID:   "low",
+		Title:       "Low score",
+		SourceName:  "habr",
+		URL:         "https://habr.com/low",
+		Score:       10,
+		PublishedAt: time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC),
+	})
+	feed.UpsertScoredItem(eventsv1.FeedItemScoredEvent{
+		ArticleID:   "high",
+		Title:       "High score",
+		SourceName:  "habr",
+		URL:         "https://habr.com/high",
+		Score:       99,
+		PublishedAt: time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC),
+	})
+
+	items := feed.List(10)
+
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+	if items[0].ArticleID != "high" {
+		t.Fatalf("expected highest score first, got %s", items[0].ArticleID)
+	}
+}

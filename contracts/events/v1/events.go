@@ -72,3 +72,34 @@ type ParserJobFailedEvent struct {
 	Error      string
 	FailedAt   time.Time
 }
+
+type FeedItemScoredEvent struct {
+	ArticleID   string
+	SourceName  string
+	URL         string
+	Title       string
+	Summary     string
+	Tags        []string
+	Score       float64
+	PublishedAt time.Time
+	ScoredAt    time.Time
+}
+
+func (event FeedItemScoredEvent) Validate() error {
+	if strings.TrimSpace(event.ArticleID) == "" {
+		return errors.New("article id is required")
+	}
+	if strings.TrimSpace(event.SourceName) == "" {
+		return errors.New("source name is required")
+	}
+	if strings.TrimSpace(event.URL) == "" {
+		return errors.New("url is required")
+	}
+	if strings.TrimSpace(event.Title) == "" {
+		return errors.New("title is required")
+	}
+	if event.ScoredAt.IsZero() {
+		return errors.New("scored at is required")
+	}
+	return nil
+}

@@ -11,5 +11,10 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.GRPCAddr != ":9002" {
 		t.Fatalf("unexpected gRPC addr: %s", cfg.GRPCAddr)
 	}
+	if cfg.HTTPAddr != ":8082" {
+		t.Fatalf("unexpected HTTP addr: %s", cfg.HTTPAddr)
+	}
+	if cfg.FeedScoredTopic != "feed.item.scored.v1" {
+		t.Fatalf("unexpected scored topic: %s", cfg.FeedScoredTopic)
+	}
 }
-
