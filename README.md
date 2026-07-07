@@ -320,6 +320,20 @@ make web
 
 Open `http://127.0.0.1:5173`. The default API base is `http://localhost:8080`.
 
+Run the local backend plus SPA in one command:
+
+```bash
+make dev-start
+```
+
+Stop it:
+
+```bash
+make dev-stop
+```
+
+Logs are written to `/tmp/articleflow-dev`.
+
 Smoke-run all services without leaving long-running processes:
 
 ```bash

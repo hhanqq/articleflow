@@ -3,6 +3,7 @@ import {
   buildSearchJobPayload,
   formatDate,
   formatScore,
+  normalizeJobResponse,
   normalizeFeedItem,
   shouldPollJob,
 } from "./app-core.mjs";
@@ -83,17 +84,17 @@ async function startSearchJob() {
   setError("");
   clearTimeout(state.pollTimer);
   try {
-    const payload = buildSearchJobPayload({
+    const searchPayload = buildSearchJobPayload({
       query: elements.searchQuery.value,
       sources: ["habr"],
       limit: elements.searchLimit.value,
     });
-    const job = await requestJSON("/api/v1/search/jobs", {
+    const jobPayload = await requestJSON("/api/v1/search/jobs", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(searchPayload),
     });
-    state.activeJob = job;
-    renderJob(job);
+    state.activeJob = normalizeJobResponse(jobPayload);
+    renderJob(state.activeJob);
     scheduleJobPoll();
   } catch (error) {
     setError(error.message);
@@ -111,7 +112,8 @@ function scheduleJobPoll() {
   state.pollTimer = window.setTimeout(async () => {
     try {
       const jobID = state.activeJob.ID ?? state.activeJob.id;
-      state.activeJob = await requestJSON(`/api/v1/search/jobs/${encodeURIComponent(jobID)}`);
+      const payload = await requestJSON(`/api/v1/search/jobs/${encodeURIComponent(jobID)}`);
+      state.activeJob = normalizeJobResponse(payload);
       renderJob(state.activeJob);
       scheduleJobPoll();
     } catch (error) {
@@ -135,13 +137,18 @@ async function sendReaction(articleID, type) {
 }
 
 async function requestJSON(path, options = {}) {
-  const response = await fetch(`${state.apiBase}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
+  let response;
+  try {
+    response = await fetch(`${state.apiBase}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+  } catch (error) {
+    throw new Error(`Не удалось подключиться к ${state.apiBase}. Проверь, что gateway-api запущен и API указан верно.`);
+  }
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `HTTP ${response.status}`);

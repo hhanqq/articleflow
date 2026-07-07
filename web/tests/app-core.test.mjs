@@ -5,6 +5,7 @@ import {
   buildReactionPayload,
   buildSearchJobPayload,
   formatScore,
+  normalizeJobResponse,
   normalizeFeedItem,
   shouldPollJob,
 } from "../src/app-core.mjs";
@@ -62,6 +63,19 @@ test("shouldPollJob only polls active job statuses", () => {
   assert.equal(shouldPollJob({ Status: "running" }), true);
   assert.equal(shouldPollJob({ Status: "completed" }), false);
   assert.equal(shouldPollJob({ Status: "failed" }), false);
+});
+
+test("normalizeJobResponse unwraps gateway job payload", () => {
+  const job = normalizeJobResponse({
+    job: {
+      ID: "parser-job-1",
+      Status: "queued",
+      CandidatesCount: 0,
+    },
+  });
+
+  assert.equal(job.ID, "parser-job-1");
+  assert.equal(job.Status, "queued");
 });
 
 test("formatScore returns one decimal for finite scores", () => {

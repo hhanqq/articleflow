@@ -53,6 +53,10 @@ export function shouldPollJob(job) {
   return ACTIVE_JOB_STATUSES.has(status);
 }
 
+export function normalizeJobResponse(raw = {}) {
+  return raw.job ?? raw.Job ?? raw;
+}
+
 export function formatScore(score) {
   const value = Number(score);
   if (!Number.isFinite(value)) {
