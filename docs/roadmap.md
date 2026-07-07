@@ -29,3 +29,5 @@ Stage 4 is implemented: parser jobs can be created and checked through parser-se
 Stage 5 is implemented: ranking-service consumes `article.discovered.v1`, publishes `feed.item.scored.v1`, feed-service stores a ranked in-memory read model, and gateway reads `/api/v1/feed` through feed-service.
 
 Stage 6 is implemented: `web/` contains a dependency-free static SPA for the vertical feed, parser job creation/status polling, API base settings, and article reactions.
+
+Stage 7 is implemented: gateway has CORS and `/metrics`, observability has a small Prometheus-style metrics registry, Dockerfiles are available for Go services and web, and `make e2e-ranking-feed` verifies the ranking/feed runtime chain.

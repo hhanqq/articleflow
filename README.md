@@ -237,6 +237,14 @@ make e2e-article-chain
 
 This command starts Kafka/Postgres via Docker Compose, applies the article schema, runs `article-service` for one Kafka message, publishes a sample discovered article, and verifies the row in Postgres.
 
+Run the local e2e check for ranking/feed:
+
+```bash
+make e2e-ranking-feed
+```
+
+This command starts Kafka, creates required topics, runs `ranking-service` and `feed-service`, publishes a sample discovered article, and verifies `GET /api/v1/feed`.
+
 ## Ranking And Feed Runtime
 
 Start infrastructure:
@@ -284,8 +292,16 @@ make proto
 make publish-sample-discovered
 QUERY="go kafka" LIMIT=5 make search-habr
 make e2e-article-chain
+make e2e-ranking-feed
 docker compose -f deployments/docker-compose.yml config
 docker compose -f deployments/docker-compose.yml up -d
+```
+
+Build a service image:
+
+```bash
+docker build -f deployments/docker/go-service.Dockerfile --build-arg SERVICE=gateway-api -t articleflow/gateway-api:local .
+docker build -f deployments/docker/web.Dockerfile -t articleflow/web:local .
 ```
 
 Run a service:

@@ -7,7 +7,7 @@ export GOCACHE := $(PROJECT_ROOT)/.cache/go-build
 export GOBIN := $(PROJECT_ROOT)/.bin
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: env test web-test web tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain
+.PHONY: env test web-test web tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
 
 env:
 	@mkdir -p "$(GOPATH)" "$(GOMODCACHE)" "$(GOCACHE)" "$(GOBIN)"
@@ -63,3 +63,6 @@ search-habr: env
 
 e2e-article-chain: env
 	bash scripts/e2e_article_chain.sh
+
+e2e-ranking-feed: env
+	bash scripts/e2e_ranking_feed.sh

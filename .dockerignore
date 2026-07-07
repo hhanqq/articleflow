@@ -1,0 +1,9 @@
+.git
+.go
+.cache
+.bin
+**/node_modules
+**/.DS_Store
+tmp
+*.log
+data
