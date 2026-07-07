@@ -50,6 +50,7 @@ build_service() {
 build_service parser-service
 build_service ranking-service
 build_service feed-service
+build_service user-service
 build_service gateway-api
 
 start_service parser-service "$PROJECT_ROOT/services/parser-service" env \
@@ -68,6 +69,11 @@ start_service feed-service "$PROJECT_ROOT/services/feed-service" env \
   FEED_HTTP_ADDR=:8082 \
   FEED_CONSUMER_GROUP_ID=feed-service-dev \
   "$BIN_DIR/feed-service"
+
+start_service user-service "$PROJECT_ROOT/services/user-service" env \
+  KAFKA_BROKERS=localhost:9092 \
+  USER_CONSUMER_GROUP_ID=user-service-dev \
+  "$BIN_DIR/user-service"
 
 start_service gateway-api "$PROJECT_ROOT/services/gateway-api" env \
   GATEWAY_HTTP_ADDR=:8080 \
