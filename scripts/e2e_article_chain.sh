@@ -21,6 +21,23 @@ fi
 
 docker compose -f "$COMPOSE_FILE" up -d postgres zookeeper kafka
 
+echo "Waiting for Kafka..."
+for _ in {1..60}; do
+  if docker compose -f "$COMPOSE_FILE" exec -T kafka kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+echo "Ensuring Kafka topic article.discovered.v1..."
+docker compose -f "$COMPOSE_FILE" exec -T kafka kafka-topics \
+  --bootstrap-server kafka:29092 \
+  --create \
+  --if-not-exists \
+  --topic article.discovered.v1 \
+  --partitions 1 \
+  --replication-factor 1 >/dev/null
+
 echo "Waiting for Postgres..."
 for _ in {1..30}; do
   if docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U articleflow -d articleflow >/dev/null 2>&1; then
