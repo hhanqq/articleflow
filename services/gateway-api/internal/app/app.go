@@ -6,10 +6,11 @@ import (
 	"net/http"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
-	userv1 "github.com/hanq/articleflow/contracts/user/v1"
+	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
 	feedclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/feed"
 	parserclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/parser"
 	"github.com/hanq/articleflow/services/gateway-api/internal/config"
+	"github.com/hanq/articleflow/services/gateway-api/internal/reactions"
 	httptransport "github.com/hanq/articleflow/services/gateway-api/internal/transport/http"
 )
 
@@ -22,12 +23,13 @@ func New(cfg config.Config) *App {
 }
 
 func (app *App) Handler() http.Handler {
+	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
 	return httptransport.NewRouter(httptransport.RouterDependencies{
 		ServiceName:      app.cfg.ServiceName,
 		FeedProvider:     feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
 		SearchProvider:   emptySearchProvider{},
 		ParserJobClient:  parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient),
-		ReactionRecorder: noopReactionRecorder{},
+		ReactionRecorder: reactions.NewPublisher(producer),
 	})
 }
 
@@ -60,10 +62,4 @@ type emptySearchProvider struct{}
 
 func (emptySearchProvider) Search(_ parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	return nil, nil
-}
-
-type noopReactionRecorder struct{}
-
-func (noopReactionRecorder) Record(_ userv1.UserReaction) error {
-	return nil
 }

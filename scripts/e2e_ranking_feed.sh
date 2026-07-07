@@ -26,6 +26,7 @@ trap cleanup EXIT
 docker compose -f deployments/docker-compose.yml up -d kafka zookeeper >/dev/null
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic article.discovered.v1 --partitions 1 --replication-factor 1 >/dev/null
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic feed.item.scored.v1 --partitions 1 --replication-factor 1 >/dev/null
+docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic user.reaction.created.v1 --partitions 1 --replication-factor 1 >/dev/null
 
 (
   cd services/feed-service

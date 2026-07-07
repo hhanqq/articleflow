@@ -64,4 +64,15 @@ if ! rg -q '"items"' /tmp/articleflow-dev-feed.json; then
   exit 1
 fi
 
+curl -fsS -X POST "http://localhost:8080/api/v1/reactions" \
+  -H "Origin: http://127.0.0.1:5173" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"reader-smoke","article_id":"habr:dev-habr-article-1","type":"save"}' >/tmp/articleflow-dev-reaction.json
+
+if ! rg -q '"accepted":true' /tmp/articleflow-dev-reaction.json; then
+  echo "reaction request was not accepted"
+  cat /tmp/articleflow-dev-reaction.json
+  exit 1
+fi
+
 echo "dev smoke passed"

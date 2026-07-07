@@ -65,6 +65,22 @@ type UserReactionCreatedEvent struct {
 	CreatedAt time.Time
 }
 
+func (event UserReactionCreatedEvent) Validate() error {
+	if strings.TrimSpace(event.UserID) == "" {
+		return errors.New("user id is required")
+	}
+	if strings.TrimSpace(event.ArticleID) == "" {
+		return errors.New("article id is required")
+	}
+	if strings.TrimSpace(event.Type) == "" {
+		return errors.New("reaction type is required")
+	}
+	if event.CreatedAt.IsZero() {
+		return errors.New("created at is required")
+	}
+	return nil
+}
+
 type ParserJobFailedEvent struct {
 	JobID      string
 	SourceName string

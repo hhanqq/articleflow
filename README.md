@@ -135,6 +135,8 @@ curl -X POST http://localhost:8080/api/v1/reactions \
   -d '{"user_id":"user-1","article_id":"article-1","type":"save"}'
 ```
 
+Reaction requests are published by gateway-api to Kafka topic `user.reaction.created.v1`.
+
 ## Article Service Runtime
 
 Default mode uses in-memory storage:
@@ -255,6 +257,7 @@ Start infrastructure:
 docker compose -f deployments/docker-compose.yml up -d kafka zookeeper
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic article.discovered.v1 --partitions 1 --replication-factor 1
 docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic feed.item.scored.v1 --partitions 1 --replication-factor 1
+docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic user.reaction.created.v1 --partitions 1 --replication-factor 1
 ```
 
 Run ranking-service:

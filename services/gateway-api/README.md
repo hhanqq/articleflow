@@ -6,7 +6,7 @@ Runtime:
 
 - proxies parser jobs to parser-service
 - proxies `GET /api/v1/feed` to feed-service
-- accepts reaction requests
+- publishes reaction requests to Kafka topic `user.reaction.created.v1`
 
 Run:
 

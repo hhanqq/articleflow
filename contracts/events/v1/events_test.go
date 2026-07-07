@@ -83,3 +83,28 @@ func TestFeedItemScoredEventValidateRequiresArticleID(t *testing.T) {
 		t.Fatal("expected validation error for empty article id")
 	}
 }
+
+func TestUserReactionCreatedEventValidate(t *testing.T) {
+	event := UserReactionCreatedEvent{
+		UserID:    "reader-1",
+		ArticleID: "habr:1",
+		Type:      "save",
+		CreatedAt: time.Now().UTC(),
+	}
+
+	if err := event.Validate(); err != nil {
+		t.Fatalf("expected valid reaction event, got %v", err)
+	}
+}
+
+func TestUserReactionCreatedEventValidateRequiresUserID(t *testing.T) {
+	event := UserReactionCreatedEvent{
+		ArticleID: "habr:1",
+		Type:      "save",
+		CreatedAt: time.Now().UTC(),
+	}
+
+	if err := event.Validate(); err == nil {
+		t.Fatal("expected validation error for empty user id")
+	}
+}
