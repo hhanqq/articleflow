@@ -7,22 +7,28 @@ import (
 )
 
 type Config struct {
-	ServiceName                string
-	GRPCAddr                   string
-	KafkaBrokers               string
-	ArticleDiscoveredTopic     string
-	RankingConsumerGroupID     string
-	RankingConsumerMaxMessages int
+	ServiceName                 string
+	GRPCAddr                    string
+	KafkaBrokers                string
+	ArticleDiscoveredTopic      string
+	UserReactionTopic           string
+	RankingConsumerGroupID      string
+	ReactionConsumerGroupID     string
+	RankingConsumerMaxMessages  int
+	ReactionConsumerMaxMessages int
 }
 
 func Load() Config {
 	return Config{
-		ServiceName:                "ranking-service",
-		GRPCAddr:                   sharedconfig.String("RANKING_GRPC_ADDR", ":9004"),
-		KafkaBrokers:               sharedconfig.String("KAFKA_BROKERS", "localhost:9092"),
-		ArticleDiscoveredTopic:     sharedconfig.String("ARTICLE_DISCOVERED_TOPIC", "article.discovered.v1"),
-		RankingConsumerGroupID:     sharedconfig.String("RANKING_CONSUMER_GROUP_ID", "ranking-service"),
-		RankingConsumerMaxMessages: sharedconfig.Int("RANKING_CONSUMER_MAX_MESSAGES", 0),
+		ServiceName:                 "ranking-service",
+		GRPCAddr:                    sharedconfig.String("RANKING_GRPC_ADDR", ":9004"),
+		KafkaBrokers:                sharedconfig.String("KAFKA_BROKERS", "localhost:9092"),
+		ArticleDiscoveredTopic:      sharedconfig.String("ARTICLE_DISCOVERED_TOPIC", "article.discovered.v1"),
+		UserReactionTopic:           sharedconfig.String("USER_REACTION_TOPIC", "user.reaction.created.v1"),
+		RankingConsumerGroupID:      sharedconfig.String("RANKING_CONSUMER_GROUP_ID", "ranking-service"),
+		ReactionConsumerGroupID:     sharedconfig.String("RANKING_REACTION_CONSUMER_GROUP_ID", "ranking-service-reactions"),
+		RankingConsumerMaxMessages:  sharedconfig.Int("RANKING_CONSUMER_MAX_MESSAGES", 0),
+		ReactionConsumerMaxMessages: sharedconfig.Int("RANKING_REACTION_CONSUMER_MAX_MESSAGES", 0),
 	}
 }
 

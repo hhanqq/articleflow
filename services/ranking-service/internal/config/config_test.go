@@ -14,7 +14,13 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ArticleDiscoveredTopic != "article.discovered.v1" {
 		t.Fatalf("unexpected discovered topic: %s", cfg.ArticleDiscoveredTopic)
 	}
+	if cfg.UserReactionTopic != "user.reaction.created.v1" {
+		t.Fatalf("unexpected reaction topic: %s", cfg.UserReactionTopic)
+	}
 	if cfg.RankingConsumerGroupID != "ranking-service" {
 		t.Fatalf("unexpected consumer group: %s", cfg.RankingConsumerGroupID)
+	}
+	if cfg.ReactionConsumerGroupID != "ranking-service-reactions" {
+		t.Fatalf("unexpected reaction consumer group: %s", cfg.ReactionConsumerGroupID)
 	}
 }

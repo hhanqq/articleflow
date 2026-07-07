@@ -13,11 +13,16 @@ import (
 )
 
 type Ranker struct {
-	now func() time.Time
+	now     func() time.Time
+	signals *SignalStore
 }
 
 func NewRanker() *Ranker {
 	return &Ranker{now: time.Now}
+}
+
+func NewRankerWithSignals(signals *SignalStore) *Ranker {
+	return &Ranker{now: time.Now, signals: signals}
 }
 
 func (ranker *Ranker) Rank(query parserv1.SearchQuery, items []feedv1.FeedItem) []feedv1.FeedItem {
@@ -43,6 +48,9 @@ func (ranker *Ranker) RankDiscovered(event eventsv1.ArticleDiscoveredEvent) even
 		PublishedAt: event.PublishedAt,
 	}
 	score := ranker.score(nil, item)
+	if ranker.signals != nil {
+		ranker.signals.RememberArticle(item)
+	}
 	return eventsv1.FeedItemScoredEvent{
 		ArticleID:   item.ArticleID,
 		SourceName:  item.SourceName,
@@ -73,6 +81,9 @@ func (ranker *Ranker) score(terms []string, item feedv1.FeedItem) float64 {
 			ageHours = 0
 		}
 		score += 20 / (1 + ageHours/24)
+	}
+	if ranker.signals != nil {
+		score = ranker.signals.ApplyToScore(score, item)
 	}
 	return score
 }

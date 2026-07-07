@@ -62,6 +62,7 @@ start_service parser-service "$PROJECT_ROOT/services/parser-service" env \
 start_service ranking-service "$PROJECT_ROOT/services/ranking-service" env \
   KAFKA_BROKERS=localhost:9092 \
   RANKING_CONSUMER_GROUP_ID=ranking-service-dev \
+  RANKING_REACTION_CONSUMER_GROUP_ID=ranking-service-reactions-dev \
   "$BIN_DIR/ranking-service"
 
 start_service feed-service "$PROJECT_ROOT/services/feed-service" env \
