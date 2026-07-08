@@ -103,6 +103,10 @@ button[type="submit"],
   color: #ffffff;
 }
 
+#runParserJob {
+  border-color: var(--accent-2);
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.6;
@@ -198,10 +202,15 @@ h2 {
 }
 
 .tag-row,
-.article-actions {
+.article-actions,
+.form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.form-actions button {
+  flex: 1 1 140px;
 }
 
 .article-actions a {

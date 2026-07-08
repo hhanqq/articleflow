@@ -7,6 +7,7 @@ import {
   normalizeCandidateItem,
   normalizeJobResponse,
   normalizeFeedItem,
+  normalizeSearchResponse,
   shouldPollJob,
 } from "./app-core.mjs";
 
@@ -30,6 +31,8 @@ const elements = {
   feedCount: document.querySelector("#feedCount"),
   refreshFeed: document.querySelector("#refreshFeed"),
   searchForm: document.querySelector("#searchForm"),
+  searchStored: document.querySelector("#searchStored"),
+  runParserJob: document.querySelector("#runParserJob"),
   searchQuery: document.querySelector("#searchQuery"),
   searchLimit: document.querySelector("#searchLimit"),
   jobStatus: document.querySelector("#jobStatus"),
@@ -59,6 +62,10 @@ elements.refreshFeed.addEventListener("click", () => {
 
 elements.searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  void searchStoredArticles();
+});
+
+elements.runParserJob.addEventListener("click", () => {
   void startSearchJob();
 });
 
@@ -106,6 +113,7 @@ async function loadFeed() {
 async function startSearchJob() {
   setError("");
   clearTimeout(state.pollTimer);
+  elements.runParserJob.disabled = true;
   try {
     const searchPayload = buildSearchJobPayload({
       query: elements.searchQuery.value,
@@ -121,6 +129,37 @@ async function startSearchJob() {
     scheduleJobPoll();
   } catch (error) {
     setError(error.message);
+  } finally {
+    elements.runParserJob.disabled = false;
+  }
+}
+
+async function searchStoredArticles() {
+  setError("");
+  elements.searchStored.disabled = true;
+  try {
+    const searchPayload = buildSearchJobPayload({
+      query: elements.searchQuery.value,
+      sources: ["habr", "vc"],
+      limit: elements.searchLimit.value,
+    });
+    const payload = await requestJSON("/api/v1/search", {
+      method: "POST",
+      body: JSON.stringify(searchPayload),
+    });
+    state.items = normalizeSearchResponse(payload).map(normalizeCandidateItem);
+    if (state.items.length === 0) {
+      state.feedEmptyTitle = "В базе ничего не найдено";
+      state.feedEmptyMessage = `По запросу "${searchPayload.query}" нет сохраненных статей. Запусти parser job, чтобы попробовать подтянуть свежие материалы.`;
+    } else {
+      state.feedEmptyTitle = "";
+      state.feedEmptyMessage = "";
+    }
+    renderFeed();
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    elements.searchStored.disabled = false;
   }
 }
 

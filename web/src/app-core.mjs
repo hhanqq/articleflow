@@ -88,6 +88,11 @@ export function normalizeJobResponse(raw = {}) {
   return raw.job ?? raw.Job ?? raw;
 }
 
+export function normalizeSearchResponse(raw = {}) {
+  const candidates = raw.candidates ?? raw.Candidates ?? [];
+  return Array.isArray(candidates) ? candidates : [];
+}
+
 export function formatScore(score) {
   const value = Number(score);
   if (!Number.isFinite(value)) {

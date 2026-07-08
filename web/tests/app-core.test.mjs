@@ -9,6 +9,7 @@ import {
   normalizeCandidateItem,
   normalizeJobResponse,
   normalizeFeedItem,
+  normalizeSearchResponse,
   shouldPollJob,
 } from "../src/app-core.mjs";
 
@@ -116,6 +117,15 @@ test("normalizeJobResponse unwraps gateway job payload", () => {
 
   assert.equal(job.ID, "parser-job-1");
   assert.equal(job.Status, "queued");
+});
+
+test("normalizeSearchResponse unwraps gateway candidates", () => {
+  const candidates = normalizeSearchResponse({
+    candidates: [{ Title: "Go Kafka" }],
+  });
+
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].Title, "Go Kafka");
 });
 
 test("formatScore returns one decimal for finite scores", () => {
