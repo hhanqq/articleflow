@@ -58,9 +58,22 @@ func BuildListFeedItemsQuery(limit int) (string, []any) {
 		limit = 100
 	}
 	query := `
+WITH ranked_feed_items AS (
+  SELECT
+    article_id,
+    title,
+    summary,
+    source_name,
+    url,
+    tags,
+    score,
+    published_at,
+    ROW_NUMBER() OVER (PARTITION BY lower(source_name) ORDER BY score DESC, published_at DESC NULLS LAST) AS source_rank
+  FROM feed_items
+)
 SELECT article_id, title, summary, source_name, url, array_to_json(tags)::text, score, published_at
-FROM feed_items
-ORDER BY score DESC, published_at DESC NULLS LAST
+FROM ranked_feed_items
+ORDER BY source_rank ASC, score DESC, published_at DESC NULLS LAST
 LIMIT $1
 `
 	return query, []any{limit}

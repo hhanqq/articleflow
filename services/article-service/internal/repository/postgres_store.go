@@ -146,11 +146,30 @@ func BuildSearchArticlesQuery(query articlev1.SearchQuery) (string, []any) {
 	args = append(args, query.Offset)
 	offsetPlaceholder := len(args)
 
+	rankExpression := `ts_rank_cd(` + searchVector + `, ` + searchQuery + `)`
 	return `
+WITH ranked_articles AS (
+  SELECT
+    id,
+    source_name,
+    external_id,
+    url,
+    title,
+    summary,
+    content,
+    author,
+    tags,
+    language,
+    published_at,
+    parsed_at,
+    ` + rankExpression + ` AS search_rank,
+    ROW_NUMBER() OVER (PARTITION BY lower(source_name) ORDER BY ` + rankExpression + ` DESC, published_at DESC NULLS LAST, parsed_at DESC) AS source_rank
+  FROM articles
+  WHERE ` + strings.Join(clauses, " AND ") + `
+)
 SELECT id, source_name, external_id, url, title, summary, content, author, array_to_json(tags)::text, language, published_at, parsed_at
-FROM articles
-WHERE ` + strings.Join(clauses, " AND ") + `
-ORDER BY ts_rank_cd(` + searchVector + `, ` + searchQuery + `) DESC, published_at DESC NULLS LAST, parsed_at DESC
+FROM ranked_articles
+ORDER BY source_rank ASC, search_rank DESC, published_at DESC NULLS LAST, parsed_at DESC
 LIMIT $` + fmt.Sprint(limitPlaceholder) + `
 OFFSET $` + fmt.Sprint(offsetPlaceholder) + `
 `, args

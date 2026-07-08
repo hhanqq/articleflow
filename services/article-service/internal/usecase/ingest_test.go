@@ -125,6 +125,42 @@ func TestMemoryArticleStoreSearchesStoredArticles(t *testing.T) {
 	}
 }
 
+func TestMemoryArticleStoreSearchBalancesResultsAcrossSources(t *testing.T) {
+	store := NewMemoryArticleStore()
+	articles := []articlev1.Article{
+		{ID: "habr:1", SourceName: "habr", URL: "https://habr.com/1", Title: "Сибирь технологии", PublishedAt: time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)},
+		{ID: "habr:2", SourceName: "habr", URL: "https://habr.com/2", Title: "Сибирь стартапы", PublishedAt: time.Date(2026, 7, 4, 10, 0, 0, 0, time.UTC)},
+		{ID: "habr:3", SourceName: "habr", URL: "https://habr.com/3", Title: "Сибирь инфраструктура", PublishedAt: time.Date(2026, 7, 3, 10, 0, 0, 0, time.UTC)},
+		{ID: "vc:1", SourceName: "vc", URL: "https://vc.ru/1", Title: "Сибирь бизнес", PublishedAt: time.Date(2026, 7, 2, 10, 0, 0, 0, time.UTC)},
+		{ID: "vc:2", SourceName: "vc", URL: "https://vc.ru/2", Title: "Сибирь инвестиции", PublishedAt: time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)},
+	}
+	for _, article := range articles {
+		if _, err := store.Save(context.Background(), article); err != nil {
+			t.Fatalf("save article: %v", err)
+		}
+	}
+
+	found, err := store.Search(context.Background(), articlev1.SearchQuery{
+		Text:    "Сибирь",
+		Sources: []string{"habr", "vc"},
+		Limit:   4,
+	})
+
+	if err != nil {
+		t.Fatalf("search articles: %v", err)
+	}
+	if len(found) != 4 {
+		t.Fatalf("expected 4 articles, got %d", len(found))
+	}
+	sources := []string{found[0].SourceName, found[1].SourceName, found[2].SourceName, found[3].SourceName}
+	expected := []string{"habr", "vc", "habr", "vc"}
+	for index := range expected {
+		if sources[index] != expected[index] {
+			t.Fatalf("expected balanced sources %#v, got %#v", expected, sources)
+		}
+	}
+}
+
 func TestMemoryArticleStoreSearchAppliesFiltersAndOffset(t *testing.T) {
 	store := NewMemoryArticleStore()
 	articles := []articlev1.Article{

@@ -18,16 +18,23 @@ type Parser interface {
 }
 
 type Usecase struct {
-	producer articleflowkafka.Producer
-	parsers  map[string]Parser
+	producer    articleflowkafka.Producer
+	parsers     map[string]Parser
+	sourceOrder []string
 }
 
 func NewUsecase(producer articleflowkafka.Producer, parsers []Parser) *Usecase {
 	bySource := make(map[string]Parser, len(parsers))
+	sourceOrder := make([]string, 0, len(parsers))
 	for _, parser := range parsers {
-		bySource[parser.SourceName()] = parser
+		source := strings.TrimSpace(parser.SourceName())
+		if source == "" {
+			continue
+		}
+		bySource[source] = parser
+		sourceOrder = append(sourceOrder, source)
 	}
-	return &Usecase{producer: producer, parsers: bySource}
+	return &Usecase{producer: producer, parsers: bySource, sourceOrder: sourceOrder}
 }
 
 func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
@@ -36,10 +43,10 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 		return nil, err
 	}
 
-	var allCandidates []parserv1.ArticleCandidate
+	var buckets []sourceCandidateBucket
 	seenCandidates := make(map[string]bool)
 	var lastErr error
-	for _, source := range selectedSources(query, usecase.parsers) {
+	for _, source := range usecase.selectedSources(query) {
 		parser := usecase.parsers[source]
 		candidates, err := parser.Search(ctx, query)
 		if err != nil {
@@ -49,6 +56,7 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 			lastErr = err
 			continue
 		}
+		bucket := sourceCandidateBucket{source: source}
 		for _, candidate := range candidates {
 			candidate = normalizeCandidate(candidate, source, query)
 			if candidate.URL == "" || candidate.Title == "" {
@@ -62,14 +70,15 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 			if err := usecase.publishCandidate(ctx, candidate); err != nil {
 				return nil, err
 			}
-			allCandidates = append(allCandidates, candidate)
+			bucket.candidates = append(bucket.candidates, candidate)
+		}
+		if len(bucket.candidates) > 0 {
+			buckets = append(buckets, bucket)
 		}
 	}
+	allCandidates := interleaveCandidateBuckets(buckets, query.Limit)
 	if len(allCandidates) == 0 && lastErr != nil {
 		return nil, lastErr
-	}
-	if query.Limit > 0 && len(allCandidates) > query.Limit {
-		allCandidates = allCandidates[:query.Limit]
 	}
 	return allCandidates, nil
 }
@@ -121,15 +130,48 @@ func (usecase *Usecase) publishFailure(ctx context.Context, source string, query
 	})
 }
 
-func selectedSources(query parserv1.SearchQuery, parsers map[string]Parser) []string {
+func (usecase *Usecase) selectedSources(query parserv1.SearchQuery) []string {
 	if len(query.Sources) > 0 {
-		return query.Sources
+		sources := make([]string, 0, len(query.Sources))
+		for _, source := range query.Sources {
+			source = strings.TrimSpace(source)
+			if source == "" || usecase.parsers[source] == nil {
+				continue
+			}
+			sources = append(sources, source)
+		}
+		return sources
 	}
-	sources := make([]string, 0, len(parsers))
-	for source := range parsers {
-		sources = append(sources, source)
+	return append([]string(nil), usecase.sourceOrder...)
+}
+
+type sourceCandidateBucket struct {
+	source     string
+	candidates []parserv1.ArticleCandidate
+}
+
+func interleaveCandidateBuckets(buckets []sourceCandidateBucket, limit int) []parserv1.ArticleCandidate {
+	if len(buckets) == 0 || limit <= 0 {
+		return nil
 	}
-	return sources
+	result := make([]parserv1.ArticleCandidate, 0, limit)
+	for index := 0; len(result) < limit; index++ {
+		added := false
+		for _, bucket := range buckets {
+			if index >= len(bucket.candidates) {
+				continue
+			}
+			result = append(result, bucket.candidates[index])
+			added = true
+			if len(result) >= limit {
+				break
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	return result
 }
 
 func normalizeCandidate(candidate parserv1.ArticleCandidate, source string, query parserv1.SearchQuery) parserv1.ArticleCandidate {

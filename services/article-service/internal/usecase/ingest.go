@@ -95,6 +95,7 @@ func (store *MemoryArticleStore) Search(_ context.Context, query articlev1.Searc
 	sort.SliceStable(articles, func(i, j int) bool {
 		return articles[i].PublishedAt.After(articles[j].PublishedAt)
 	})
+	articles = interleaveArticlesBySource(articles, query.Sources)
 	if query.Offset >= len(articles) {
 		return []articlev1.Article{}, nil
 	}
@@ -103,6 +104,59 @@ func (store *MemoryArticleStore) Search(_ context.Context, query articlev1.Searc
 		articles = articles[:query.Limit]
 	}
 	return articles, nil
+}
+
+func interleaveArticlesBySource(articles []articlev1.Article, sourceOrder []string) []articlev1.Article {
+	if len(articles) == 0 {
+		return nil
+	}
+	order := cleanSourceOrder(sourceOrder)
+	known := make(map[string]bool, len(order))
+	for _, source := range order {
+		known[source] = true
+	}
+	buckets := make(map[string][]articlev1.Article)
+	for _, article := range articles {
+		source := strings.ToLower(strings.TrimSpace(article.SourceName))
+		if source == "" {
+			source = "_unknown"
+		}
+		if !known[source] {
+			order = append(order, source)
+			known[source] = true
+		}
+		buckets[source] = append(buckets[source], article)
+	}
+	result := make([]articlev1.Article, 0, len(articles))
+	for index := 0; len(result) < len(articles); index++ {
+		added := false
+		for _, source := range order {
+			bucket := buckets[source]
+			if index >= len(bucket) {
+				continue
+			}
+			result = append(result, bucket[index])
+			added = true
+		}
+		if !added {
+			break
+		}
+	}
+	return result
+}
+
+func cleanSourceOrder(sources []string) []string {
+	order := make([]string, 0, len(sources))
+	seen := make(map[string]bool, len(sources))
+	for _, source := range sources {
+		source = strings.ToLower(strings.TrimSpace(source))
+		if source == "" || seen[source] {
+			continue
+		}
+		seen[source] = true
+		order = append(order, source)
+	}
+	return order
 }
 
 type IngestUsecase struct {

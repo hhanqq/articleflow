@@ -3,6 +3,7 @@ package usecase
 import (
 	"errors"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,8 +68,8 @@ func (feed *MemoryFeed) List(limit int) ([]feedv1.FeedItem, error) {
 		limit = len(articles)
 	}
 
-	items := make([]feedv1.FeedItem, 0, limit)
-	for _, article := range articles[:limit] {
+	items := make([]feedv1.FeedItem, 0, len(articles))
+	for _, article := range articles {
 		items = append(items, feedv1.FeedItem{
 			ArticleID:   article.ID,
 			Title:       article.Title,
@@ -80,7 +81,7 @@ func (feed *MemoryFeed) List(limit int) ([]feedv1.FeedItem, error) {
 			PublishedAt: article.PublishedAt,
 		})
 	}
-	return items, nil
+	return limitFeedItems(interleaveFeedItemsBySource(items), limit), nil
 }
 
 func (feed *MemoryFeed) listScored(limit int) []feedv1.FeedItem {
@@ -94,6 +95,49 @@ func (feed *MemoryFeed) listScored(limit int) []feedv1.FeedItem {
 		}
 		return items[i].Score > items[j].Score
 	})
+	if limit <= 0 || limit > len(items) {
+		limit = len(items)
+	}
+	return limitFeedItems(interleaveFeedItemsBySource(items), limit)
+}
+
+func interleaveFeedItemsBySource(items []feedv1.FeedItem) []feedv1.FeedItem {
+	if len(items) == 0 {
+		return nil
+	}
+	order := make([]string, 0)
+	seenSources := make(map[string]bool)
+	buckets := make(map[string][]feedv1.FeedItem)
+	for _, item := range items {
+		source := strings.ToLower(strings.TrimSpace(item.SourceName))
+		if source == "" {
+			source = "_unknown"
+		}
+		if !seenSources[source] {
+			seenSources[source] = true
+			order = append(order, source)
+		}
+		buckets[source] = append(buckets[source], item)
+	}
+	result := make([]feedv1.FeedItem, 0, len(items))
+	for index := 0; len(result) < len(items); index++ {
+		added := false
+		for _, source := range order {
+			bucket := buckets[source]
+			if index >= len(bucket) {
+				continue
+			}
+			result = append(result, bucket[index])
+			added = true
+		}
+		if !added {
+			break
+		}
+	}
+	return result
+}
+
+func limitFeedItems(items []feedv1.FeedItem, limit int) []feedv1.FeedItem {
 	if limit <= 0 || limit > len(items) {
 		limit = len(items)
 	}

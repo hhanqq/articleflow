@@ -27,3 +27,5 @@ Useful env:
 - `KAFKA_BROKERS` defaults to `127.0.0.1:9092`
 
 For `vc` discovery search, the first vc.ru API page is usually 12 items. Use parser job `limit` to fetch more pages; `SearchQuery` caps it at 100 per job.
+
+When a job searches multiple sources, parser-service deduplicates candidates and interleaves returned results by source before applying `limit`. Empty `sources` means all registered sources.

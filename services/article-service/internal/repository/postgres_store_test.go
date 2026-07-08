@@ -115,6 +115,12 @@ func TestBuildSearchArticlesQueryUsesFullTextFiltersAndPagination(t *testing.T) 
 	if !strings.Contains(query, "LIMIT $") || !strings.Contains(query, "OFFSET $") {
 		t.Fatalf("expected limit and offset placeholders, got %s", query)
 	}
+	if !strings.Contains(query, "ROW_NUMBER() OVER (PARTITION BY lower(source_name)") {
+		t.Fatalf("expected source-balanced row numbers, got %s", query)
+	}
+	if !strings.Contains(query, "ORDER BY source_rank ASC") {
+		t.Fatalf("expected source-balanced ordering, got %s", query)
+	}
 	if len(args) != 8 {
 		t.Fatalf("expected 8 args, got %d", len(args))
 	}

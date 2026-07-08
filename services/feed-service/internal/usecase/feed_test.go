@@ -93,3 +93,32 @@ func TestUpsertScoredItemSortsByRankingScore(t *testing.T) {
 		t.Fatalf("expected highest score first, got %s", items[0].ArticleID)
 	}
 }
+
+func TestListBalancesScoredItemsAcrossSources(t *testing.T) {
+	feed := NewMemoryFeed()
+	events := []eventsv1.FeedItemScoredEvent{
+		{ArticleID: "habr-1", Title: "Habr 1", SourceName: "habr", URL: "https://habr.com/1", Score: 100, PublishedAt: time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)},
+		{ArticleID: "habr-2", Title: "Habr 2", SourceName: "habr", URL: "https://habr.com/2", Score: 99, PublishedAt: time.Date(2026, 7, 4, 10, 0, 0, 0, time.UTC)},
+		{ArticleID: "habr-3", Title: "Habr 3", SourceName: "habr", URL: "https://habr.com/3", Score: 98, PublishedAt: time.Date(2026, 7, 3, 10, 0, 0, 0, time.UTC)},
+		{ArticleID: "vc-1", Title: "VC 1", SourceName: "vc", URL: "https://vc.ru/1", Score: 70, PublishedAt: time.Date(2026, 7, 2, 10, 0, 0, 0, time.UTC)},
+		{ArticleID: "vc-2", Title: "VC 2", SourceName: "vc", URL: "https://vc.ru/2", Score: 69, PublishedAt: time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)},
+	}
+	for _, event := range events {
+		if err := feed.UpsertScoredItem(event); err != nil {
+			t.Fatalf("upsert item: %v", err)
+		}
+	}
+
+	items, err := feed.List(4)
+
+	if err != nil {
+		t.Fatalf("list feed: %v", err)
+	}
+	sources := []string{items[0].SourceName, items[1].SourceName, items[2].SourceName, items[3].SourceName}
+	expected := []string{"habr", "vc", "habr", "vc"}
+	for index := range expected {
+		if sources[index] != expected[index] {
+			t.Fatalf("expected balanced sources %#v, got %#v", expected, sources)
+		}
+	}
+}

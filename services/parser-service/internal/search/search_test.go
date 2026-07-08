@@ -195,3 +195,65 @@ func TestSearchAndPublishNormalizesAndDeduplicatesCandidates(t *testing.T) {
 		t.Fatalf("expected 1 published message, got %d", len(producer.Messages()))
 	}
 }
+
+func TestSearchAndPublishBalancesReturnedCandidatesAcrossSources(t *testing.T) {
+	producer := articleflowkafka.NewMemoryProducer()
+	usecase := NewUsecase(producer, []Parser{
+		fakeParser{
+			sourceName: "habr",
+			candidates: []parserv1.ArticleCandidate{
+				{SourceName: "habr", ExternalID: "h1", URL: "https://habr.com/1", Title: "Siberia Habr 1"},
+				{SourceName: "habr", ExternalID: "h2", URL: "https://habr.com/2", Title: "Siberia Habr 2"},
+				{SourceName: "habr", ExternalID: "h3", URL: "https://habr.com/3", Title: "Siberia Habr 3"},
+			},
+		},
+		fakeParser{
+			sourceName: "vc",
+			candidates: []parserv1.ArticleCandidate{
+				{SourceName: "vc", ExternalID: "v1", URL: "https://vc.ru/1", Title: "Siberia VC 1"},
+				{SourceName: "vc", ExternalID: "v2", URL: "https://vc.ru/2", Title: "Siberia VC 2"},
+				{SourceName: "vc", ExternalID: "v3", URL: "https://vc.ru/3", Title: "Siberia VC 3"},
+			},
+		},
+	})
+
+	candidates, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:    "Сибирь",
+		Sources: []string{"habr", "vc"},
+		Limit:   4,
+	})
+
+	if err != nil {
+		t.Fatalf("search and publish failed: %v", err)
+	}
+	if len(candidates) != 4 {
+		t.Fatalf("expected 4 candidates, got %d", len(candidates))
+	}
+	sources := []string{candidates[0].SourceName, candidates[1].SourceName, candidates[2].SourceName, candidates[3].SourceName}
+	expected := []string{"habr", "vc", "habr", "vc"}
+	for index := range expected {
+		if sources[index] != expected[index] {
+			t.Fatalf("expected balanced sources %#v, got %#v", expected, sources)
+		}
+	}
+	if len(producer.Messages()) != 6 {
+		t.Fatalf("expected all discovered candidates to be published, got %d", len(producer.Messages()))
+	}
+}
+
+func TestSelectedSourcesUsesParserRegistrationOrderWhenQueryOmitsSources(t *testing.T) {
+	usecase := NewUsecase(articleflowkafka.NewMemoryProducer(), []Parser{
+		fakeParser{sourceName: "habr"},
+		fakeParser{sourceName: "vc"},
+		fakeParser{sourceName: "dzen"},
+	})
+
+	sources := usecase.selectedSources(parserv1.SearchQuery{})
+
+	expected := []string{"habr", "vc", "dzen"}
+	for index := range expected {
+		if sources[index] != expected[index] {
+			t.Fatalf("expected source order %#v, got %#v", expected, sources)
+		}
+	}
+}
