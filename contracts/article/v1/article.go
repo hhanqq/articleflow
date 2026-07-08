@@ -46,9 +46,13 @@ type ArticlePreview struct {
 }
 
 type SearchQuery struct {
-	Text    string
-	Sources []string
-	Limit   int
+	Text     string
+	Sources  []string
+	Tags     []string
+	FromDate *time.Time
+	ToDate   *time.Time
+	Limit    int
+	Offset   int
 }
 
 func (query SearchQuery) Normalize() SearchQuery {
@@ -58,6 +62,9 @@ func (query SearchQuery) Normalize() SearchQuery {
 	}
 	if query.Limit > 100 {
 		query.Limit = 100
+	}
+	if query.Offset < 0 {
+		query.Offset = 0
 	}
 	return query
 }

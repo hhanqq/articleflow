@@ -48,13 +48,19 @@ func TestClientSearchesArticles(t *testing.T) {
 		if payload.Query != "путешествие в китай" {
 			t.Fatalf("unexpected query: %s", payload.Query)
 		}
+		if len(payload.Tags) != 1 || payload.Tags[0] != "travel" {
+			t.Fatalf("unexpected tags: %#v", payload.Tags)
+		}
+		if payload.Offset != 10 {
+			t.Fatalf("unexpected offset: %d", payload.Offset)
+		}
 		response.Header().Set("Content-Type", "application/json")
 		_, _ = response.Write([]byte(`{"articles":[{"ID":"vc:1","SourceName":"vc","ExternalID":"1","URL":"https://vc.ru/1","Title":"Путешествие в Китай","Summary":"Маршрут"}]}`))
 	}))
 	defer server.Close()
 	client := New(server.URL, server.Client())
 
-	candidates, err := client.Search(parserv1.SearchQuery{Text: "путешествие в китай", Sources: []string{"vc"}, Limit: 5})
+	candidates, err := client.Search(parserv1.SearchQuery{Text: "путешествие в китай", Sources: []string{"vc"}, Tags: []string{"travel"}, Limit: 5, Offset: 10})
 
 	if err != nil {
 		t.Fatalf("search articles: %v", err)

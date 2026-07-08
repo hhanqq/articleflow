@@ -21,9 +21,13 @@ type responsePayload struct {
 }
 
 type searchRequest struct {
-	Query   string   `json:"query"`
-	Sources []string `json:"sources"`
-	Limit   int      `json:"limit"`
+	Query    string     `json:"query"`
+	Sources  []string   `json:"sources"`
+	Tags     []string   `json:"tags"`
+	FromDate *time.Time `json:"from_date,omitempty"`
+	ToDate   *time.Time `json:"to_date,omitempty"`
+	Limit    int        `json:"limit"`
+	Offset   int        `json:"offset"`
 }
 
 type searchResponse struct {
@@ -70,9 +74,13 @@ func (client *Client) GetByID(id string) (articlev1.Article, bool) {
 
 func (client *Client) Search(query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	payload, err := json.Marshal(searchRequest{
-		Query:   query.Text,
-		Sources: query.Sources,
-		Limit:   query.Limit,
+		Query:    query.Text,
+		Sources:  query.Sources,
+		Tags:     query.Tags,
+		FromDate: query.FromDate,
+		ToDate:   query.ToDate,
+		Limit:    query.Limit,
+		Offset:   query.Offset,
 	})
 	if err != nil {
 		return nil, err

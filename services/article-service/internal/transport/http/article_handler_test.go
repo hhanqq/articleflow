@@ -63,21 +63,35 @@ func TestArticleHandlerReturnsNotFound(t *testing.T) {
 
 func TestArticleSearchHandlerReturnsStoredArticles(t *testing.T) {
 	store := usecase.NewMemoryArticleStore()
-	article := articlev1.Article{
-		ID:          "vc:1",
-		SourceName:  "vc",
-		ExternalID:  "1",
-		URL:         "https://vc.ru/travel/1",
-		Title:       "Путешествие в Китай",
-		Summary:     "Маршрут и бюджет",
-		PublishedAt: time.Date(2026, 7, 8, 10, 0, 0, 0, time.UTC),
-		ParsedAt:    time.Date(2026, 7, 8, 10, 5, 0, 0, time.UTC),
+	articles := []articlev1.Article{
+		{
+			ID:          "vc:1",
+			SourceName:  "vc",
+			ExternalID:  "1",
+			URL:         "https://vc.ru/travel/1",
+			Title:       "Путешествие в Китай",
+			Summary:     "Маршрут и бюджет",
+			PublishedAt: time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
+			ParsedAt:    time.Date(2026, 7, 7, 10, 5, 0, 0, time.UTC),
+		},
+		{
+			ID:          "vc:2",
+			SourceName:  "vc",
+			ExternalID:  "2",
+			URL:         "https://vc.ru/travel/2",
+			Title:       "Путешествие в Китай",
+			Summary:     "Маршрут и бюджет",
+			PublishedAt: time.Date(2026, 7, 8, 10, 0, 0, 0, time.UTC),
+			ParsedAt:    time.Date(2026, 7, 8, 10, 5, 0, 0, time.UTC),
+		},
 	}
-	if _, err := store.Save(context.Background(), article); err != nil {
-		t.Fatalf("save article: %v", err)
+	for _, article := range articles {
+		if _, err := store.Save(context.Background(), article); err != nil {
+			t.Fatalf("save article: %v", err)
+		}
 	}
 	handler := NewArticleSearchHandler(store)
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/articles/search", bytes.NewBufferString(`{"query":"путешествие в китай","limit":5}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/articles/search", bytes.NewBufferString(`{"query":"путешествие в китай","limit":1,"offset":1}`))
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)

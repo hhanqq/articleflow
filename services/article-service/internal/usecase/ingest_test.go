@@ -125,6 +125,61 @@ func TestMemoryArticleStoreSearchesStoredArticles(t *testing.T) {
 	}
 }
 
+func TestMemoryArticleStoreSearchAppliesFiltersAndOffset(t *testing.T) {
+	store := NewMemoryArticleStore()
+	articles := []articlev1.Article{
+		{
+			ID:          "vc:1",
+			SourceName:  "vc",
+			URL:         "https://vc.ru/travel/1",
+			Title:       "Путешествие в Китай",
+			Tags:        []string{"Travel *"},
+			PublishedAt: time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:          "vc:2",
+			SourceName:  "vc",
+			URL:         "https://vc.ru/travel/2",
+			Title:       "Путешествие в Китай",
+			Tags:        []string{"Travel *"},
+			PublishedAt: time.Date(2026, 7, 2, 10, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:          "habr:3",
+			SourceName:  "habr",
+			URL:         "https://habr.com/ru/articles/3/",
+			Title:       "Путешествие в Китай",
+			Tags:        []string{"backend"},
+			PublishedAt: time.Date(2026, 7, 3, 10, 0, 0, 0, time.UTC),
+		},
+	}
+	for _, article := range articles {
+		if _, err := store.Save(context.Background(), article); err != nil {
+			t.Fatalf("save article: %v", err)
+		}
+	}
+	fromDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+	found, err := store.Search(context.Background(), articlev1.SearchQuery{
+		Text:     "путешествие китай",
+		Sources:  []string{"vc"},
+		Tags:     []string{"travel"},
+		FromDate: &fromDate,
+		Limit:    1,
+		Offset:   1,
+	})
+
+	if err != nil {
+		t.Fatalf("search articles: %v", err)
+	}
+	if len(found) != 1 {
+		t.Fatalf("expected 1 article, got %d", len(found))
+	}
+	if found[0].ID != "vc:1" {
+		t.Fatalf("unexpected article: %s", found[0].ID)
+	}
+}
+
 type failingArticleStore struct{}
 
 func (failingArticleStore) Save(_ context.Context, _ articlev1.Article) (articlev1.Article, error) {

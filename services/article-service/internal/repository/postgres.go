@@ -20,10 +20,10 @@ INSERT INTO articles (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
-ON CONFLICT (url) DO UPDATE SET
-    id = EXCLUDED.id,
+ON CONFLICT (id) DO UPDATE SET
     source_name = EXCLUDED.source_name,
     external_id = EXCLUDED.external_id,
+    url = EXCLUDED.url,
     title = EXCLUDED.title,
     summary = EXCLUDED.summary,
     content = EXCLUDED.content,

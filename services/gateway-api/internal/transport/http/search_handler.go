@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
@@ -13,9 +14,13 @@ type SearchProvider interface {
 }
 
 type SearchRequest struct {
-	Query   string   `json:"query"`
-	Sources []string `json:"sources"`
-	Limit   int      `json:"limit"`
+	Query    string     `json:"query"`
+	Sources  []string   `json:"sources"`
+	Tags     []string   `json:"tags"`
+	FromDate *time.Time `json:"from_date"`
+	ToDate   *time.Time `json:"to_date"`
+	Limit    int        `json:"limit"`
+	Offset   int        `json:"offset"`
 }
 
 type SearchResponse struct {
@@ -35,9 +40,13 @@ func NewSearchHandler(provider SearchProvider) http.Handler {
 			return
 		}
 		query := parserv1.SearchQuery{
-			Text:    strings.TrimSpace(payload.Query),
-			Sources: payload.Sources,
-			Limit:   normalizeSearchLimit(payload.Limit),
+			Text:     strings.TrimSpace(payload.Query),
+			Sources:  payload.Sources,
+			Tags:     payload.Tags,
+			FromDate: payload.FromDate,
+			ToDate:   payload.ToDate,
+			Limit:    normalizeSearchLimit(payload.Limit),
+			Offset:   payload.Offset,
 		}
 		if err := query.Validate(); err != nil {
 			http.Error(response, err.Error(), http.StatusBadRequest)

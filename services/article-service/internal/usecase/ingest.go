@@ -61,12 +61,22 @@ func (store *MemoryArticleStore) Search(_ context.Context, query articlev1.Searc
 	query = query.Normalize()
 	terms := searchTerms(query.Text)
 	sources := sourceSet(query.Sources)
+	tags := tagSet(query.Tags)
 
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	articles := make([]articlev1.Article, 0, len(store.byID))
 	for _, article := range store.byID {
 		if len(sources) > 0 && !sources[strings.ToLower(article.SourceName)] {
+			continue
+		}
+		if len(tags) > 0 && !articleHasAnyTag(article, tags) {
+			continue
+		}
+		if query.FromDate != nil && article.PublishedAt.Before(*query.FromDate) {
+			continue
+		}
+		if query.ToDate != nil && article.PublishedAt.After(*query.ToDate) {
 			continue
 		}
 		text := strings.ToLower(strings.Join([]string{
@@ -85,6 +95,10 @@ func (store *MemoryArticleStore) Search(_ context.Context, query articlev1.Searc
 	sort.SliceStable(articles, func(i, j int) bool {
 		return articles[i].PublishedAt.After(articles[j].PublishedAt)
 	})
+	if query.Offset >= len(articles) {
+		return []articlev1.Article{}, nil
+	}
+	articles = articles[query.Offset:]
 	if len(articles) > query.Limit {
 		articles = articles[:query.Limit]
 	}
@@ -185,6 +199,32 @@ func sourceSet(sources []string) map[string]bool {
 		}
 	}
 	return set
+}
+
+func articleHasAnyTag(article articlev1.Article, tags map[string]bool) bool {
+	for _, tag := range article.Tags {
+		if tags[normalizeTag(tag)] {
+			return true
+		}
+	}
+	return false
+}
+
+func tagSet(tags []string) map[string]bool {
+	set := make(map[string]bool, len(tags))
+	for _, tag := range tags {
+		tag = normalizeTag(tag)
+		if tag != "" {
+			set[tag] = true
+		}
+	}
+	return set
+}
+
+func normalizeTag(tag string) string {
+	tag = strings.ToLower(strings.TrimSpace(tag))
+	tag = strings.TrimSpace(strings.TrimSuffix(tag, "*"))
+	return tag
 }
 
 func isSearchStopWord(word string) bool {

@@ -27,7 +27,7 @@ func TestBuildUpsertArticleQuery(t *testing.T) {
 	if !strings.Contains(query, "INSERT INTO articles") {
 		t.Fatalf("expected insert query, got %s", query)
 	}
-	if !strings.Contains(query, "ON CONFLICT (url) DO UPDATE") {
+	if !strings.Contains(query, "ON CONFLICT (id) DO UPDATE") {
 		t.Fatalf("expected upsert query, got %s", query)
 	}
 	if len(args) != 12 {
@@ -37,4 +37,3 @@ func TestBuildUpsertArticleQuery(t *testing.T) {
 		t.Fatalf("unexpected first arg: %v", args[0])
 	}
 }
-

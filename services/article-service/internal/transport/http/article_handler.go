@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	articlev1 "github.com/hanq/articleflow/contracts/article/v1"
 )
@@ -22,9 +23,13 @@ type ArticleResponse struct {
 }
 
 type ArticleSearchRequest struct {
-	Query   string   `json:"query"`
-	Sources []string `json:"sources"`
-	Limit   int      `json:"limit"`
+	Query    string     `json:"query"`
+	Sources  []string   `json:"sources"`
+	Tags     []string   `json:"tags"`
+	FromDate *time.Time `json:"from_date"`
+	ToDate   *time.Time `json:"to_date"`
+	Limit    int        `json:"limit"`
+	Offset   int        `json:"offset"`
 }
 
 type ArticleSearchResponse struct {
@@ -69,9 +74,13 @@ func NewArticleSearchHandler(searcher ArticleSearcher) http.Handler {
 			return
 		}
 		query := articlev1.SearchQuery{
-			Text:    strings.TrimSpace(payload.Query),
-			Sources: payload.Sources,
-			Limit:   payload.Limit,
+			Text:     strings.TrimSpace(payload.Query),
+			Sources:  payload.Sources,
+			Tags:     payload.Tags,
+			FromDate: payload.FromDate,
+			ToDate:   payload.ToDate,
+			Limit:    payload.Limit,
+			Offset:   payload.Offset,
 		}.Normalize()
 		if err := query.Validate(); err != nil {
 			http.Error(response, err.Error(), http.StatusBadRequest)

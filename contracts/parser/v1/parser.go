@@ -16,7 +16,9 @@ const (
 type SearchQuery struct {
 	Text     string
 	Sources  []string
+	Tags     []string
 	Limit    int
+	Offset   int
 	Language string
 	FromDate *time.Time
 	ToDate   *time.Time
@@ -29,6 +31,9 @@ func (query SearchQuery) Normalize() SearchQuery {
 	}
 	if query.Limit > 100 {
 		query.Limit = 100
+	}
+	if query.Offset < 0 {
+		query.Offset = 0
 	}
 	if strings.TrimSpace(query.Language) == "" {
 		query.Language = "ru"

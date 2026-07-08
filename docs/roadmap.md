@@ -24,7 +24,7 @@ Kafka article.discovered.v1
 
 Stage 3 is implemented: `parser-service/cmd/search-habr` can search Habr through RSS, fetch full article HTML pages, publish full-content `article.discovered.v1` events, and publish `parser.job.failed.v1` on parser source failure.
 
-Stage 4 is implemented: stored articles are searchable through gateway `/api/v1/search` backed by article-service/Postgres, and parser jobs can be created and checked through parser-service HTTP endpoints and gateway search job proxy endpoints. Completed parser jobs include candidate payloads, not only counts.
+Stage 4 is implemented: stored articles are searchable through gateway `/api/v1/search` backed by article-service/Postgres full-text search. It supports source, tag, date, limit, and offset filters. Parser jobs can be created and checked through parser-service HTTP endpoints and gateway search job proxy endpoints. Completed parser jobs include candidate payloads, not only counts, and fresh parser candidates are normalized and deduplicated before Kafka publish.
 
 Stage 5 is implemented: ranking-service consumes `article.discovered.v1`, publishes `feed.item.scored.v1`, feed-service stores a ranked in-memory read model, and gateway reads `/api/v1/feed` through feed-service.
 

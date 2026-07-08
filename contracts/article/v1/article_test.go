@@ -26,7 +26,7 @@ func TestArticleValidateRequiresTitle(t *testing.T) {
 }
 
 func TestSearchQueryNormalizeAndValidate(t *testing.T) {
-	query := SearchQuery{Text: "  путешествие в китай  "}
+	query := SearchQuery{Text: "  путешествие в китай  ", Offset: -10}
 
 	normalized := query.Normalize()
 
@@ -35,6 +35,9 @@ func TestSearchQueryNormalizeAndValidate(t *testing.T) {
 	}
 	if normalized.Limit != 20 {
 		t.Fatalf("expected default limit 20, got %d", normalized.Limit)
+	}
+	if normalized.Offset != 0 {
+		t.Fatalf("expected normalized offset 0, got %d", normalized.Offset)
 	}
 	if err := normalized.Validate(); err != nil {
 		t.Fatalf("expected valid query, got %v", err)

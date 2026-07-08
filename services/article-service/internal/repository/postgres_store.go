@@ -87,11 +87,10 @@ WHERE id = $1
 
 func (store *PostgresArticleStore) Search(ctx context.Context, query articlev1.SearchQuery) ([]articlev1.Article, error) {
 	query = query.Normalize()
-	terms := postgresSearchTerms(query.Text)
-	if len(terms) == 0 {
+	if query.Text == "" {
 		return []articlev1.Article{}, nil
 	}
-	sqlQuery, args := BuildSearchArticlesQuery(terms, query.Sources, query.Limit)
+	sqlQuery, args := BuildSearchArticlesQuery(query)
 	rows, err := store.queryer.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, err
@@ -112,47 +111,72 @@ func (store *PostgresArticleStore) Search(ctx context.Context, query articlev1.S
 	return articles, nil
 }
 
-func BuildSearchArticlesQuery(terms []string, sources []string, limit int) (string, []any) {
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	args := make([]any, 0, len(terms)+len(sources)+1)
-	clauses := make([]string, 0, len(terms)+len(sources))
-	searchDocument := `lower(
-		coalesce(title, '') || ' ' ||
-		coalesce(summary, '') || ' ' ||
-		coalesce(content, '') || ' ' ||
-		coalesce(url, '') || ' ' ||
-		coalesce(author, '') || ' ' ||
-		coalesce(array_to_string(tags, ' '), '')
-	)`
-	for _, term := range terms {
-		args = append(args, "%"+strings.ToLower(term)+"%")
-		clauses = append(clauses, fmt.Sprintf("%s LIKE $%d", searchDocument, len(args)))
-	}
-	sourceClauses := make([]string, 0, len(sources))
-	for _, source := range sources {
-		source = strings.ToLower(strings.TrimSpace(source))
-		if source == "" {
-			continue
+func BuildSearchArticlesQuery(query articlev1.SearchQuery) (string, []any) {
+	query = query.Normalize()
+	args := []any{query.Text}
+	searchVector := articleSearchVector()
+	searchQuery := "websearch_to_tsquery('russian', $1)"
+	clauses := []string{fmt.Sprintf("%s @@ %s", searchVector, searchQuery)}
+
+	sources := cleanLowerStrings(query.Sources)
+	if len(sources) > 0 {
+		placeholders := make([]string, 0, len(sources))
+		for _, source := range sources {
+			args = append(args, source)
+			placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)))
 		}
-		args = append(args, source)
-		sourceClauses = append(sourceClauses, fmt.Sprintf("lower(source_name) = $%d", len(args)))
+		clauses = append(clauses, "lower(source_name) IN ("+strings.Join(placeholders, ", ")+")")
 	}
-	if len(sourceClauses) > 0 {
-		clauses = append(clauses, "("+strings.Join(sourceClauses, " OR ")+")")
+
+	for _, tag := range cleanLowerStrings(query.Tags) {
+		args = append(args, tag)
+		clauses = append(clauses, fmt.Sprintf("EXISTS (SELECT 1 FROM unnest(tags) AS article_tag WHERE lower(btrim(trim(trailing '*' from article_tag))) = $%d)", len(args)))
 	}
-	args = append(args, limit)
+	if query.FromDate != nil {
+		args = append(args, *query.FromDate)
+		clauses = append(clauses, fmt.Sprintf("published_at >= $%d", len(args)))
+	}
+	if query.ToDate != nil {
+		args = append(args, *query.ToDate)
+		clauses = append(clauses, fmt.Sprintf("published_at <= $%d", len(args)))
+	}
+
+	args = append(args, query.Limit)
+	limitPlaceholder := len(args)
+	args = append(args, query.Offset)
+	offsetPlaceholder := len(args)
+
 	return `
 SELECT id, source_name, external_id, url, title, summary, content, author, array_to_json(tags)::text, language, published_at, parsed_at
 FROM articles
 WHERE ` + strings.Join(clauses, " AND ") + `
-ORDER BY published_at DESC NULLS LAST, parsed_at DESC
-LIMIT $` + fmt.Sprint(len(args)) + `
+ORDER BY ts_rank_cd(` + searchVector + `, ` + searchQuery + `) DESC, published_at DESC NULLS LAST, parsed_at DESC
+LIMIT $` + fmt.Sprint(limitPlaceholder) + `
+OFFSET $` + fmt.Sprint(offsetPlaceholder) + `
 `, args
+}
+
+func articleSearchVector() string {
+	return `(
+	setweight(to_tsvector('russian', coalesce(title, '')), 'A') ||
+	setweight(to_tsvector('russian', coalesce(summary, '')), 'B') ||
+	setweight(to_tsvector('russian', coalesce(content, '')), 'C') ||
+	setweight(to_tsvector('russian', coalesce(author, '')), 'D')
+)`
+}
+
+func cleanLowerStrings(values []string) []string {
+	cleaned := make([]string, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		cleaned = append(cleaned, value)
+	}
+	return cleaned
 }
 
 type articleScanner interface {
@@ -191,26 +215,4 @@ func scanArticleRows(scanner articleScanner) (articlev1.Article, error) {
 	}
 	article.ParsedAt = parsedAt
 	return article, nil
-}
-
-func postgresSearchTerms(text string) []string {
-	fields := strings.Fields(strings.ToLower(text))
-	terms := make([]string, 0, len(fields))
-	for _, field := range fields {
-		field = strings.Trim(field, `"'.,:;!?()[]{}<>`)
-		if len([]rune(field)) < 2 || postgresSearchStopWord(field) {
-			continue
-		}
-		terms = append(terms, field)
-	}
-	return terms
-}
-
-func postgresSearchStopWord(word string) bool {
-	switch word {
-	case "и", "в", "во", "на", "по", "с", "со", "о", "об", "от", "до", "для", "из", "за", "к", "ко", "a", "an", "the", "of", "to", "in", "on", "for", "and":
-		return true
-	default:
-		return false
-	}
 }

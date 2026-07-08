@@ -51,7 +51,7 @@ Stored article search is also wired:
 ```text
 gateway-api POST /api/v1/search
   -> article-service POST /api/v1/articles/search
-  -> Postgres articles search
+  -> Postgres full-text articles search
   -> gateway-api returns parser-compatible candidates
 ```
 
@@ -77,10 +77,11 @@ deployments/postgres/init/002_articles.sql
 ```
 
 Stage 3 parser runtime search is available through `services/parser-service/cmd/search-habr` and parser-service HTTP jobs.
-It searches Habr with full article HTML parsing and also supports `vc` through a generic RSS parser pointed at `https://vc.ru/rss`.
+It searches Habr with full article HTML parsing. Parser-service also has a source registry with `vc`, `vc_rss`, and custom RSS sources configured through `CUSTOM_RSS_SOURCES`.
+The current `vc` implementation is a safe RSS-backed source; replace its internals with an official or stable HTML/API integration when one is available.
 Parser errors publish `parser.job.failed.v1`; multi-source jobs keep successful sources when another source is temporarily unavailable.
 
-Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints. Completed parser jobs return both `CandidatesCount` and the candidate payload, so clients can show fresh parser results immediately.
+Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints. Completed parser jobs return both `CandidatesCount` and the candidate payload, so clients can show fresh parser results immediately. Runtime parser results are normalized, deduplicated, published to Kafka, and then stored by article-service.
 
 Stage 5 ranking/feed pipeline is available through Kafka and HTTP:
 
@@ -121,10 +122,10 @@ Example search request:
 ```bash
 curl -X POST http://localhost:8080/api/v1/search \
   -H 'Content-Type: application/json' \
-  -d '{"query":"go kafka","sources":["habr","vc"],"limit":10}'
+  -d '{"query":"go kafka","sources":["habr","vc"],"tags":["go"],"from_date":"2026-01-01T00:00:00Z","limit":10,"offset":0}'
 ```
 
-This searches already stored articles. Use an async parser job when you want to fetch and publish fresh source data.
+This searches already stored articles with Postgres full-text search. Optional filters are `sources`, `tags`, `from_date`, `to_date`, `limit`, and `offset`. Use an async parser job when you want to fetch, normalize, deduplicate, publish, and store fresh source data.
 
 Example async parser job through gateway:
 
@@ -187,6 +188,9 @@ RANKING_CONSUMER_GROUP_ID=ranking-service
 RANKING_CONSUMER_MAX_MESSAGES=0
 FEED_CONSUMER_GROUP_ID=feed-service
 FEED_CONSUMER_MAX_MESSAGES=0
+VC_BASE_URL=https://vc.ru
+VC_RSS_FEED_URL=https://vc.ru/rss
+CUSTOM_RSS_SOURCES=dzen=https://dzen.ru/rss,yandex=https://news.yandex.ru/index.rss
 ARTICLE_STORAGE_DRIVER=postgres
 ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
 FEED_STORAGE_DRIVER=postgres
@@ -247,6 +251,8 @@ curl -X POST http://localhost:8081/api/v1/parser/jobs \
   -H 'Content-Type: application/json' \
   -d '{"query":"go kafka","sources":["habr","vc"],"limit":5}'
 ```
+
+If `sources` is omitted, parser-service runs every registered parser. Built-in source names are `habr`, `vc`, and `vc_rss`; custom RSS entries use the names from `CUSTOM_RSS_SOURCES`.
 
 Run the local e2e check for the first backend chain:
 

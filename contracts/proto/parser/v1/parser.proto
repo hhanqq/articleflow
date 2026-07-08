@@ -13,6 +13,8 @@ message SearchQuery {
   string language = 4;
   google.protobuf.Timestamp from_date = 5;
   google.protobuf.Timestamp to_date = 6;
+  repeated string tags = 7;
+  int32 offset = 8;
 }
 
 message ArticleCandidate {

@@ -62,7 +62,7 @@ func TestPostgresArticleStoreSaveExecutesUpsert(t *testing.T) {
 	if saved.ID != article.ID {
 		t.Fatalf("expected saved article id %s, got %s", article.ID, saved.ID)
 	}
-	if !strings.Contains(execer.query, "ON CONFLICT (url) DO UPDATE") {
+	if !strings.Contains(execer.query, "ON CONFLICT (id) DO UPDATE") {
 		t.Fatalf("expected upsert query, got %s", execer.query)
 	}
 	if len(execer.args) != 12 {
@@ -81,25 +81,44 @@ func TestPostgresArticleStoreSaveReturnsExecError(t *testing.T) {
 	}
 }
 
-func TestBuildSearchArticlesQueryFiltersByTermsSourcesAndLimit(t *testing.T) {
-	query, args := BuildSearchArticlesQuery([]string{"путешествие", "китай"}, []string{"vc", "habr"}, 5)
+func TestBuildSearchArticlesQueryUsesFullTextFiltersAndPagination(t *testing.T) {
+	fromDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	toDate := time.Date(2026, 7, 8, 0, 0, 0, 0, time.UTC)
+	query, args := BuildSearchArticlesQuery(articlev1.SearchQuery{
+		Text:     "путешествие в китай",
+		Sources:  []string{"vc", "habr"},
+		Tags:     []string{"travel"},
+		FromDate: &fromDate,
+		ToDate:   &toDate,
+		Limit:    5,
+		Offset:   10,
+	})
 
 	if !strings.Contains(query, "FROM articles") {
 		t.Fatalf("expected articles query, got %s", query)
 	}
-	if !strings.Contains(query, "LIKE $1") || !strings.Contains(query, "LIKE $2") {
-		t.Fatalf("expected term placeholders, got %s", query)
+	if !strings.Contains(query, "to_tsvector") || !strings.Contains(query, "websearch_to_tsquery") {
+		t.Fatalf("expected full text search, got %s", query)
 	}
-	if !strings.Contains(query, "lower(source_name) = $3") || !strings.Contains(query, "lower(source_name) = $4") {
-		t.Fatalf("expected source placeholders, got %s", query)
+	if !strings.Contains(query, "lower(source_name) IN") {
+		t.Fatalf("expected source filter, got %s", query)
 	}
-	if !strings.Contains(query, "LIMIT $5") {
-		t.Fatalf("expected limit placeholder, got %s", query)
+	if !strings.Contains(query, "EXISTS (SELECT 1 FROM unnest(tags)") {
+		t.Fatalf("expected tag filter, got %s", query)
 	}
-	if len(args) != 5 {
-		t.Fatalf("expected 5 args, got %d", len(args))
+	if !strings.Contains(query, "trim(trailing '*' from article_tag)") {
+		t.Fatalf("expected normalized tag filter, got %s", query)
 	}
-	if args[0] != "%путешествие%" || args[1] != "%китай%" || args[4] != 5 {
+	if !strings.Contains(query, "published_at >= $") || !strings.Contains(query, "published_at <= $") {
+		t.Fatalf("expected date filters, got %s", query)
+	}
+	if !strings.Contains(query, "LIMIT $") || !strings.Contains(query, "OFFSET $") {
+		t.Fatalf("expected limit and offset placeholders, got %s", query)
+	}
+	if len(args) != 8 {
+		t.Fatalf("expected 8 args, got %d", len(args))
+	}
+	if args[0] != "путешествие в китай" || args[6] != 5 || args[7] != 10 {
 		t.Fatalf("unexpected args: %#v", args)
 	}
 }
