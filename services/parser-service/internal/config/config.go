@@ -16,6 +16,10 @@ type Config struct {
 	HabrRequestDelayMS int
 	VCBaseURL          string
 	VCRSSFeedURL       string
+	VCSearchProvider   string
+	GoogleSearchAPIKey string
+	GoogleSearchCX     string
+	BingSearchAPIKey   string
 	CustomRSSSources   string
 }
 
@@ -30,6 +34,10 @@ func Load() Config {
 		HabrRequestDelayMS: sharedconfig.Int("HABR_REQUEST_DELAY_MS", 500),
 		VCBaseURL:          sharedconfig.String("VC_BASE_URL", "https://vc.ru"),
 		VCRSSFeedURL:       sharedconfig.String("VC_RSS_FEED_URL", "https://vc.ru/rss"),
+		VCSearchProvider:   sharedconfig.String("VC_SEARCH_PROVIDER", ""),
+		GoogleSearchAPIKey: sharedconfig.String("GOOGLE_SEARCH_API_KEY", ""),
+		GoogleSearchCX:     sharedconfig.String("GOOGLE_SEARCH_CX", ""),
+		BingSearchAPIKey:   sharedconfig.String("BING_SEARCH_API_KEY", ""),
 		CustomRSSSources:   sharedconfig.String("CUSTOM_RSS_SOURCES", ""),
 	}
 }

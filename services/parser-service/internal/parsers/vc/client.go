@@ -15,15 +15,22 @@ import (
 const SourceName = "vc"
 
 type ClientOptions struct {
-	BaseURL    string
-	HTTPClient *http.Client
-	Language   string
+	BaseURL     string
+	HTTPClient  *http.Client
+	Language    string
+	URLSearcher URLSearcher
+}
+
+type URLSearcher interface {
+	SearchURLs(ctx context.Context, query string, limit int) ([]string, error)
 }
 
 type Client struct {
-	fallback *rssfeed.Client
-	baseURL  string
-	client   *http.Client
+	fallback    *rssfeed.Client
+	baseURL     string
+	client      *http.Client
+	language    string
+	urlSearcher URLSearcher
 }
 
 func NewClient(options ClientOptions) *Client {
@@ -36,8 +43,10 @@ func NewClient(options ClientOptions) *Client {
 		httpClient = &http.Client{Timeout: 15 * time.Second}
 	}
 	return &Client{
-		baseURL: baseURL,
-		client:  httpClient,
+		baseURL:     baseURL,
+		client:      httpClient,
+		language:    firstNonEmpty(options.Language, "ru"),
+		urlSearcher: options.URLSearcher,
 		fallback: rssfeed.NewClient(rssfeed.ClientOptions{
 			SourceName: SourceName,
 			FeedURL:    baseURL + "/rss",
@@ -54,6 +63,9 @@ func (client *Client) SourceName() string {
 func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
+	if client.urlSearcher != nil {
+		return client.searchURLs(ctx, query.Normalize())
+	}
 	candidates, err := client.fallback.Search(ctx, query)
 	if err != nil {
 		return nil, err
@@ -78,6 +90,41 @@ func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([
 		}
 		if !article.PublishedAt.IsZero() {
 			candidates[index].PublishedAt = article.PublishedAt
+		}
+	}
+	return candidates, nil
+}
+
+func (client *Client) searchURLs(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
+	urls, err := client.urlSearcher.SearchURLs(ctx, query.Text, query.Limit)
+	if err != nil {
+		return nil, err
+	}
+	candidates := make([]parserv1.ArticleCandidate, 0, len(urls))
+	for _, articleURL := range urls {
+		articleBody, err := client.get(ctx, articleURL)
+		if err != nil {
+			continue
+		}
+		article, parseErr := ParseArticleHTML(articleBody, articleURL)
+		closeErr := articleBody.Close()
+		if parseErr != nil || closeErr != nil {
+			continue
+		}
+		candidates = append(candidates, parserv1.ArticleCandidate{
+			SourceName:  SourceName,
+			ExternalID:  article.ExternalID,
+			URL:         article.URL,
+			Title:       article.Title,
+			Summary:     article.Summary,
+			Content:     article.Content,
+			Author:      article.Author,
+			Tags:        article.Tags,
+			Language:    firstNonEmpty(article.Language, client.language),
+			PublishedAt: article.PublishedAt,
+		})
+		if query.Limit > 0 && len(candidates) >= query.Limit {
+			break
 		}
 	}
 	return candidates, nil

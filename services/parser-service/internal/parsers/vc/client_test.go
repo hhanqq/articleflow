@@ -9,6 +9,20 @@ import (
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
 
+type fakeURLSearcher struct {
+	urls []string
+}
+
+func (searcher fakeURLSearcher) SearchURLs(_ context.Context, query string, limit int) ([]string, error) {
+	if query != "путешествие в китай" {
+		return nil, nil
+	}
+	if len(searcher.urls) > limit {
+		return searcher.urls[:limit], nil
+	}
+	return searcher.urls, nil
+}
+
 func TestClientSearchEnrichesRSSCandidatesFromArticleHTML(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -74,5 +88,61 @@ func TestClientSearchEnrichesRSSCandidatesFromArticleHTML(t *testing.T) {
 	}
 	if len(candidate.Tags) != 2 || candidate.Tags[0] != "xiaomi" || candidate.Tags[1] != "transport" {
 		t.Fatalf("unexpected tags: %#v", candidate.Tags)
+	}
+}
+
+func TestClientSearchUsesConfiguredURLSearcherInsteadOfRSS(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	mux.HandleFunc("/rss", func(response http.ResponseWriter, request *http.Request) {
+		t.Fatal("RSS endpoint should not be called when URL searcher is configured")
+	})
+	mux.HandleFunc("/travel/china", func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = response.Write([]byte(`<!doctype html><html><body>
+<script>
+window.__INITIAL_STATE__ = {
+  "entry@42": {
+    "title": "Путешествие в Китай",
+    "date": 1783499532,
+    "url": "` + server.URL + `/travel/china",
+    "author": {"name": "Редакция vc.ru"},
+    "keywords": ["travel", "china"],
+    "blocks": [
+      {"type": "text", "data": {"text": "\u003Cp\u003EБольшой материал про Китай.\u003C/p\u003E"}}
+    ]
+  }
+};
+</script>
+</body></html>`))
+	})
+
+	client := NewClient(ClientOptions{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+		Language:   "ru",
+		URLSearcher: fakeURLSearcher{
+			urls: []string{server.URL + "/travel/china"},
+		},
+	})
+
+	candidates, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "путешествие в китай", Limit: 5})
+
+	if err != nil {
+		t.Fatalf("search vc: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(candidates))
+	}
+	if candidates[0].Title != "Путешествие в Китай" {
+		t.Fatalf("unexpected title: %s", candidates[0].Title)
+	}
+	if candidates[0].Content != "Большой материал про Китай." {
+		t.Fatalf("unexpected content: %s", candidates[0].Content)
+	}
+	if candidates[0].Author != "Редакция vc.ru" {
+		t.Fatalf("unexpected author: %s", candidates[0].Author)
 	}
 }

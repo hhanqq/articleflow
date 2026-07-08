@@ -29,6 +29,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.VCRSSFeedURL != "https://vc.ru/rss" {
 		t.Fatalf("unexpected vc.ru RSS URL: %s", cfg.VCRSSFeedURL)
 	}
+	if cfg.VCSearchProvider != "" {
+		t.Fatalf("unexpected vc search provider: %s", cfg.VCSearchProvider)
+	}
 }
 
 func TestBrokerListSplitsCommaSeparatedBrokers(t *testing.T) {
