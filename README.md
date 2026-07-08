@@ -264,7 +264,7 @@ By default `vc` searches the full vc.ru archive through the public discovery end
 VC_SEARCH_PROVIDER=discovery
 ```
 
-This calls `https://api.vc.ru/v2.10/search/posts?markdown=false&q=<query>`, normalizes returned vc.ru article URLs, and parses each public article HTML page. To use an external site search provider instead, configure Google or Bing:
+This calls `https://api.vc.ru/v2.10/search/posts?markdown=false&q=<query>`, follows vc.ru pagination with `lastId` and `lastSortingValue` until the requested parser job `limit` is reached, normalizes returned vc.ru article URLs, and parses each public article HTML page. `SearchQuery` caps `limit` at 100 per job. To use an external site search provider instead, configure Google or Bing:
 
 ```bash
 VC_SEARCH_PROVIDER=google

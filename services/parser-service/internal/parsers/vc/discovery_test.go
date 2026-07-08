@@ -3,6 +3,7 @@ package vc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -86,5 +87,70 @@ func TestDiscoverySearcherSearchURLSLimitsResults(t *testing.T) {
 	}
 	if len(urls) != 1 || urls[0] != "https://vc.ru/a/1" {
 		t.Fatalf("expected first url only, got %#v", urls)
+	}
+}
+
+func TestDiscoverySearcherSearchURLsPaginatesUntilLimit(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	requests := 0
+	mux.HandleFunc("/v2.10/search/posts", func(response http.ResponseWriter, request *http.Request) {
+		requests++
+		response.Header().Set("Content-Type", "application/json")
+		switch requests {
+		case 1:
+			if request.URL.Query().Get("lastId") != "" {
+				t.Fatalf("first request must not include lastId: %s", request.URL.RawQuery)
+			}
+			_, _ = response.Write([]byte(`{
+				"result": {
+					"lastId": 20,
+					"lastSortingValue": 2000,
+					"items": [
+						{"type": "entry", "data": {"url": "https://vc.ru/a/1"}},
+						{"type": "entry", "data": {"url": "https://vc.ru/a/2"}}
+					]
+				}
+			}`))
+		case 2:
+			if request.URL.Query().Get("lastId") != "20" {
+				t.Fatalf("expected second request lastId=20, got %s", request.URL.RawQuery)
+			}
+			if request.URL.Query().Get("lastSortingValue") != "2000" {
+				t.Fatalf("expected second request lastSortingValue=2000, got %s", request.URL.RawQuery)
+			}
+			_, _ = response.Write([]byte(`{
+				"result": {
+					"lastId": 40,
+					"lastSortingValue": 1000,
+					"items": [
+						{"type": "entry", "data": {"url": "https://vc.ru/a/3"}},
+						{"type": "entry", "data": {"url": "https://vc.ru/a/4"}}
+					]
+				}
+			}`))
+		default:
+			t.Fatalf("unexpected extra request %d", requests)
+		}
+	})
+
+	searcher := NewDiscoverySearcher(DiscoverySearcherOptions{
+		Endpoint: server.URL + "/v2.10/search/posts",
+		Client:   server.Client(),
+	})
+
+	urls, err := searcher.SearchURLs(context.Background(), "go kafka", 3)
+
+	if err != nil {
+		t.Fatalf("search discovery: %v", err)
+	}
+	expected := []string{"https://vc.ru/a/1", "https://vc.ru/a/2", "https://vc.ru/a/3"}
+	if fmt.Sprint(urls) != fmt.Sprint(expected) {
+		t.Fatalf("expected paginated urls %#v, got %#v", expected, urls)
+	}
+	if requests != 2 {
+		t.Fatalf("expected 2 page requests, got %d", requests)
 	}
 }

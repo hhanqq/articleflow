@@ -25,3 +25,5 @@ Useful env:
 - `BING_SEARCH_API_KEY` enables Bing Web Search for `vc`
 - `CUSTOM_RSS_SOURCES` is a comma-separated source registry in `name=url` format
 - `KAFKA_BROKERS` defaults to `127.0.0.1:9092`
+
+For `vc` discovery search, the first vc.ru API page is usually 12 items. Use parser job `limit` to fetch more pages; `SearchQuery` caps it at 100 per job.
