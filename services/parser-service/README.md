@@ -5,7 +5,7 @@ Fetches external article sources and publishes `article.discovered.v1` events to
 Current sources:
 
 - `habr`: Habr RSS search plus full article HTML parsing
-- `vc`: safe vc.ru source backed by RSS until a stable official/search integration is added
+- `vc`: vc.ru RSS discovery plus public article HTML parsing through JSON-LD/meta tags
 - `vc_rss`: generic RSS parser pointed at `https://vc.ru/rss`
 - custom RSS sources from `CUSTOM_RSS_SOURCES`, for example `dzen=https://dzen.ru/rss,yandex=https://news.yandex.ru/index.rss`
 

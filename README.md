@@ -78,7 +78,7 @@ deployments/postgres/init/002_articles.sql
 
 Stage 3 parser runtime search is available through `services/parser-service/cmd/search-habr` and parser-service HTTP jobs.
 It searches Habr with full article HTML parsing. Parser-service also has a source registry with `vc`, `vc_rss`, and custom RSS sources configured through `CUSTOM_RSS_SOURCES`.
-The current `vc` implementation is a safe RSS-backed source; replace its internals with an official or stable HTML/API integration when one is available.
+The current `vc` implementation discovers fresh articles from the public vc.ru RSS feed, then opens each public article HTML page and extracts structured article data from JSON-LD/meta tags. It is not a full archive search across vc.ru.
 Parser errors publish `parser.job.failed.v1`; multi-source jobs keep successful sources when another source is temporarily unavailable.
 
 Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints. Completed parser jobs return both `CandidatesCount` and the candidate payload, so clients can show fresh parser results immediately. Runtime parser results are normalized, deduplicated, published to Kafka, and then stored by article-service.
