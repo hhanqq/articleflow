@@ -32,11 +32,13 @@ func (app *App) Handler() http.Handler {
 
 func (app *App) handlerWithStore(store jobs.Store) http.Handler {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
-	searchUsecase := search.NewUsecase(producer, sources.BuildParsers(app.cfg))
+	sourceRegistry := sources.BuildRegistry(app.cfg)
+	searchUsecase := search.NewUsecase(producer, sourceRegistry.Parsers)
 	manager := jobs.NewManager(store, searchUsecase)
 
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler(app.cfg.ServiceName))
+	mux.Handle("/api/v1/parser/sources", httptransport.NewSourcesHandler(sourceRegistry.Sources))
 	jobsHandler := httptransport.NewJobsHandler(manager)
 	mux.Handle("/api/v1/parser/jobs", jobsHandler)
 	mux.Handle("/api/v1/parser/jobs/", jobsHandler)

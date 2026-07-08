@@ -7,12 +7,13 @@ import (
 )
 
 type RouterDependencies struct {
-	ServiceName      string
-	ArticleProvider  ArticleProvider
-	FeedProvider     FeedProvider
-	SearchProvider   SearchProvider
-	ParserJobClient  ParserJobClient
-	ReactionRecorder ReactionRecorder
+	ServiceName        string
+	ArticleProvider    ArticleProvider
+	FeedProvider       FeedProvider
+	SearchProvider     SearchProvider
+	ParserJobClient    ParserJobClient
+	ParserSourceClient ParserSourceClient
+	ReactionRecorder   ReactionRecorder
 }
 
 func NewRouter(dependencies RouterDependencies) http.Handler {
@@ -24,6 +25,7 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 	mux.Handle("/api/v1/feed", NewFeedHandler(dependencies.FeedProvider))
 	mux.Handle("/api/v1/articles", NewArticleHandler(dependencies.ArticleProvider))
 	mux.Handle("/api/v1/search", NewSearchHandler(dependencies.SearchProvider))
+	mux.Handle("/api/v1/search/sources", NewSearchSourcesHandler(dependencies.ParserSourceClient))
 	mux.Handle("/api/v1/search/jobs", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/search/jobs/", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/reactions", NewReactionHandler(dependencies.ReactionRecorder))

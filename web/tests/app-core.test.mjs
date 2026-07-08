@@ -13,6 +13,7 @@ import {
   normalizeFeedItem,
   normalizeSearchResponse,
   normalizeSourceStats,
+  normalizeSourcesResponse,
   shouldPollJob,
 } from "../src/app-core.mjs";
 
@@ -122,6 +123,20 @@ test("normalizeSourceStats accepts Go JSON field names", () => {
     error: "",
     durationMS: 123,
   });
+});
+
+test("normalizeSourcesResponse accepts Go JSON parser sources", () => {
+  const sources = normalizeSourcesResponse({
+    sources: [
+      { Name: "habr", DisplayName: "Habr", Kind: "html_rss", Enabled: true, Searchable: true },
+      { Name: "vc_rss", DisplayName: "vc.ru RSS", Kind: "rss", Enabled: false, Searchable: true },
+    ],
+  });
+
+  assert.deepEqual(sources, [
+    { name: "habr", displayName: "Habr", kind: "html_rss", enabled: true, searchable: true, notes: "" },
+    { name: "vc_rss", displayName: "vc.ru RSS", kind: "rss", enabled: false, searchable: true, notes: "" },
+  ]);
 });
 
 test("buildReactionPayload validates article and reaction", () => {

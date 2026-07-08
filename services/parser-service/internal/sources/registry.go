@@ -1,6 +1,7 @@
 package sources
 
 import (
+	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 	"time"
 
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
@@ -11,35 +12,55 @@ import (
 	"github.com/hanq/articleflow/services/parser-service/internal/search"
 )
 
+type SourceInfo = parserv1.ParserSource
+
+type Registry struct {
+	Parsers []search.Parser
+	Sources []SourceInfo
+}
+
 func BuildParsers(cfg config.Config) []search.Parser {
-	parsers := []search.Parser{
-		habr.NewClient(habr.ClientOptions{
-			BaseURL:     cfg.HabrBaseURL,
-			MaxAttempts: cfg.HabrMaxAttempts,
-			RetryDelay:  time.Duration(cfg.HabrRetryDelayMS) * time.Millisecond,
-			Waiter:      habr.FixedDelayWaiter{Delay: time.Duration(cfg.HabrRequestDelayMS) * time.Millisecond},
-		}),
-		vc.NewClient(vc.ClientOptions{
-			BaseURL:     cfg.VCBaseURL,
-			Language:    "ru",
-			URLSearcher: buildVCURLSearcher(cfg),
-		}),
+	return BuildRegistry(cfg).Parsers
+}
+
+func BuildRegistry(cfg config.Config) Registry {
+	disabled := cfg.DisabledSourceSet()
+	registry := Registry{}
+	add := func(info SourceInfo, parser search.Parser) {
+		info.Enabled = !disabled[info.Name]
+		info.Searchable = true
+		registry.Sources = append(registry.Sources, info)
+		if info.Enabled && parser != nil {
+			registry.Parsers = append(registry.Parsers, parser)
+		}
 	}
+
+	add(SourceInfo{Name: "habr", DisplayName: "Habr", Kind: "html_rss"}, habr.NewClient(habr.ClientOptions{
+		BaseURL:     cfg.HabrBaseURL,
+		MaxAttempts: cfg.HabrMaxAttempts,
+		RetryDelay:  time.Duration(cfg.HabrRetryDelayMS) * time.Millisecond,
+		Waiter:      habr.FixedDelayWaiter{Delay: time.Duration(cfg.HabrRequestDelayMS) * time.Millisecond},
+	}))
+	add(SourceInfo{Name: "vc", DisplayName: "vc.ru", Kind: "html"}, vc.NewClient(vc.ClientOptions{
+		BaseURL:     cfg.VCBaseURL,
+		Language:    "ru",
+		URLSearcher: buildVCURLSearcher(cfg),
+	}))
 	if cfg.VCRSSFeedURL != "" {
-		parsers = append(parsers, rssfeed.NewClient(rssfeed.ClientOptions{
+		add(SourceInfo{Name: "vc_rss", DisplayName: "vc.ru RSS", Kind: "rss"}, rssfeed.NewClient(rssfeed.ClientOptions{
 			SourceName: "vc_rss",
 			FeedURL:    cfg.VCRSSFeedURL,
 			Language:   "ru",
 		}))
 	}
 	for _, source := range cfg.RSSSourceList() {
-		parsers = append(parsers, rssfeed.NewClient(rssfeed.ClientOptions{
+		add(SourceInfo{Name: source.Name, DisplayName: source.Name, Kind: "rss"}, rssfeed.NewClient(rssfeed.ClientOptions{
 			SourceName: source.Name,
 			FeedURL:    source.URL,
 			Language:   "ru",
 		}))
 	}
-	return parsers
+	return registry
 }
 
 func buildVCURLSearcher(cfg config.Config) vc.URLSearcher {

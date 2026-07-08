@@ -23,6 +23,7 @@ type Config struct {
 	GoogleSearchCX     string
 	BingSearchAPIKey   string
 	CustomRSSSources   string
+	DisabledSources    string
 }
 
 func Load() Config {
@@ -43,6 +44,7 @@ func Load() Config {
 		GoogleSearchCX:     sharedconfig.String("GOOGLE_SEARCH_CX", ""),
 		BingSearchAPIKey:   sharedconfig.String("BING_SEARCH_API_KEY", ""),
 		CustomRSSSources:   sharedconfig.String("CUSTOM_RSS_SOURCES", ""),
+		DisabledSources:    sharedconfig.String("PARSER_DISABLED_SOURCES", ""),
 	}
 }
 
@@ -79,4 +81,16 @@ func (cfg Config) RSSSourceList() []RSSSource {
 		sources = append(sources, RSSSource{Name: name, URL: sourceURL})
 	}
 	return sources
+}
+
+func (cfg Config) DisabledSourceSet() map[string]bool {
+	parts := strings.Split(cfg.DisabledSources, ",")
+	disabled := make(map[string]bool, len(parts))
+	for _, part := range parts {
+		name := strings.TrimSpace(part)
+		if name != "" {
+			disabled[name] = true
+		}
+	}
+	return disabled
 }

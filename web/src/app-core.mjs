@@ -90,6 +90,21 @@ export function normalizeSourceStats(raw = {}) {
   };
 }
 
+export function normalizeSourcesResponse(raw = {}) {
+  const sources = raw.sources ?? raw.Sources ?? [];
+  if (!Array.isArray(sources)) {
+    return [];
+  }
+  return sources.map((source) => ({
+    name: String(source.Name ?? source.name ?? ""),
+    displayName: String(source.DisplayName ?? source.display_name ?? source.Name ?? source.name ?? ""),
+    kind: String(source.Kind ?? source.kind ?? ""),
+    enabled: Boolean(source.Enabled ?? source.enabled),
+    searchable: Boolean(source.Searchable ?? source.searchable),
+    notes: String(source.Notes ?? source.notes ?? ""),
+  })).filter((source) => source.name);
+}
+
 export function buildReactionPayload({ userID, articleID, type }) {
   const normalizedUserID = String(userID ?? "").trim();
   const normalizedArticleID = String(articleID ?? "").trim();

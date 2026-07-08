@@ -11,6 +11,7 @@ import {
   normalizeFeedItem,
   normalizeSearchResponse,
   normalizeSourceStats,
+  normalizeSourcesResponse,
   shouldPollJob,
 } from "./app-core.mjs";
 
@@ -21,6 +22,7 @@ const state = {
   selectedIndex: 0,
   activeJob: null,
   jobHistory: [],
+  parserSources: [],
   selectedArticle: null,
   articleLoadingID: "",
   pollTimer: 0,
@@ -44,7 +46,7 @@ const elements = {
   refreshJobs: document.querySelector("#refreshJobs"),
   jobHistory: document.querySelector("#jobHistory"),
   sourceAll: document.querySelector("#sourceAll"),
-  sourceOptions: [...document.querySelectorAll("[data-source-option]")],
+  sourceControls: document.querySelector("#sourceControls"),
   sourceStats: document.querySelector("#sourceStats"),
   lastError: document.querySelector("#lastError"),
   articleDetail: document.querySelector("#articleDetail"),
@@ -86,14 +88,15 @@ elements.sourceAll.addEventListener("change", () => {
   syncSourceControls();
 });
 
-for (const option of elements.sourceOptions) {
-  option.addEventListener("change", () => {
+elements.sourceControls.addEventListener("change", (event) => {
+  const option = event.target.closest("[data-source-option]");
+  if (option) {
     if (option.checked) {
       elements.sourceAll.checked = false;
     }
     syncSourceControls();
-  });
-}
+  }
+});
 
 elements.feed.addEventListener("click", (event) => {
   const detailButton = event.target.closest("[data-open-detail]");
@@ -128,6 +131,7 @@ elements.jobHistory.addEventListener("click", (event) => {
 
 void loadFeed();
 void loadJobHistory();
+void loadSources();
 
 async function loadFeed() {
   setError("");
@@ -232,6 +236,17 @@ async function loadJobHistory() {
   } catch (error) {
     state.jobHistory = [];
     renderJobHistory(error.message);
+  }
+}
+
+async function loadSources() {
+  try {
+    const payload = await requestJSON("/api/v1/search/sources");
+    state.parserSources = normalizeSourcesResponse(payload);
+    renderSourceControls();
+  } catch (error) {
+    state.parserSources = fallbackSources();
+    renderSourceControls();
   }
 }
 
@@ -478,21 +493,59 @@ function renderSourceStats(rawStats) {
 function selectedSources() {
   return buildSelectedSources({
     allSelected: elements.sourceAll.checked,
-    selected: elements.sourceOptions.filter((option) => option.checked).map((option) => option.value),
+    selected: sourceOptions().filter((option) => option.checked).map((option) => option.value),
   });
 }
 
 function syncSourceControls() {
   if (elements.sourceAll.checked) {
-    for (const option of elements.sourceOptions) {
+    for (const option of sourceOptions()) {
       option.checked = false;
     }
     return;
   }
-  const hasSelectedSource = elements.sourceOptions.some((option) => option.checked);
+  const hasSelectedSource = sourceOptions().some((option) => option.checked);
   if (!hasSelectedSource) {
     elements.sourceAll.checked = true;
   }
+}
+
+function renderSourceControls() {
+  const sources = state.parserSources.length > 0 ? state.parserSources : fallbackSources();
+  const selected = new Set(selectedSources());
+  elements.sourceControls.querySelectorAll("[data-source-option-label]").forEach((node) => node.remove());
+  const fragment = document.createDocumentFragment();
+  for (const source of sources) {
+    const label = document.createElement("label");
+    label.className = "source-option";
+    label.dataset.sourceOptionLabel = "true";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = source.name;
+    input.dataset.sourceOption = "true";
+    input.disabled = !source.enabled || !source.searchable;
+    input.checked = !elements.sourceAll.checked && selected.has(source.name);
+    const text = document.createElement("span");
+    text.textContent = source.displayName || source.name;
+    if (!source.enabled) {
+      text.textContent += " off";
+    }
+    label.append(input, text);
+    fragment.append(label);
+  }
+  elements.sourceControls.append(fragment);
+}
+
+function sourceOptions() {
+  return [...elements.sourceControls.querySelectorAll("[data-source-option]")];
+}
+
+function fallbackSources() {
+  return [
+    { name: "habr", displayName: "Habr", enabled: true, searchable: true },
+    { name: "vc", displayName: "vc.ru", enabled: true, searchable: true },
+    { name: "vc_rss", displayName: "vc RSS", enabled: true, searchable: true },
+  ];
 }
 
 function markReaction(articleID, type) {

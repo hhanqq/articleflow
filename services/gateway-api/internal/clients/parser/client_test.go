@@ -100,3 +100,28 @@ func TestClientListsParserJobs(t *testing.T) {
 		t.Fatalf("unexpected first job id: %s", jobs[0].ID)
 	}
 }
+
+func TestClientListsParserSources(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/v1/parser/sources" {
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+		}
+		_ = json.NewEncoder(response).Encode(sourcesResponse{Sources: []parserv1.ParserSource{
+			{Name: "habr", DisplayName: "Habr", Kind: "html_rss", Enabled: true, Searchable: true},
+		}})
+	}))
+	defer server.Close()
+	client := New(server.URL, server.Client())
+
+	sources, err := client.ListSources(context.Background())
+
+	if err != nil {
+		t.Fatalf("list parser sources: %v", err)
+	}
+	if len(sources) != 1 {
+		t.Fatalf("expected 1 source, got %d", len(sources))
+	}
+	if sources[0].Name != "habr" {
+		t.Fatalf("unexpected source: %#v", sources[0])
+	}
+}

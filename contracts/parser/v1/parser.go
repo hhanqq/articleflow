@@ -80,6 +80,15 @@ type SourceStats struct {
 	DurationMS     int64
 }
 
+type ParserSource struct {
+	Name        string
+	DisplayName string
+	Kind        string
+	Enabled     bool
+	Searchable  bool
+	Notes       string
+}
+
 type SearchResult struct {
 	Candidates  []ArticleCandidate
 	SourceStats []SourceStats

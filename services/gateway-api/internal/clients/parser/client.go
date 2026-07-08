@@ -31,6 +31,10 @@ type jobsResponse struct {
 	Jobs []parserv1.ParserJob `json:"jobs"`
 }
 
+type sourcesResponse struct {
+	Sources []parserv1.ParserSource `json:"sources"`
+}
+
 func New(baseURL string, httpClient *http.Client) *Client {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
@@ -115,4 +119,24 @@ func (client *Client) List(ctx context.Context, limit int) ([]parserv1.ParserJob
 		return nil, err
 	}
 	return decoded.Jobs, nil
+}
+
+func (client *Client) ListSources(ctx context.Context) ([]parserv1.ParserSource, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, client.baseURL+"/api/v1/parser/sources", nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("parser-service returned status %d", response.StatusCode)
+	}
+	var decoded sourcesResponse
+	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+		return nil, err
+	}
+	return decoded.Sources, nil
 }

@@ -27,6 +27,37 @@ func TestBuildParsersRegistersBuiltInAndCustomSources(t *testing.T) {
 	}
 }
 
+func TestBuildRegistryListsSourcesAndExcludesDisabledParsers(t *testing.T) {
+	registry := BuildRegistry(config.Config{
+		HabrBaseURL:        "https://habr.com",
+		VCRSSFeedURL:       "https://vc.ru/rss",
+		VCBaseURL:          "https://vc.ru",
+		DisabledSources:    "vc_rss",
+		CustomRSSSources:   "dzen=https://dzen.ru/rss",
+		VCSearchProvider:   "discovery",
+		HabrMaxAttempts:    1,
+		HabrRetryDelayMS:   0,
+		HabrRequestDelayMS: 0,
+	})
+
+	if len(registry.Parsers) != 3 {
+		t.Fatalf("expected disabled vc_rss parser to be excluded, got %d parsers", len(registry.Parsers))
+	}
+	byName := make(map[string]SourceInfo, len(registry.Sources))
+	for _, source := range registry.Sources {
+		byName[source.Name] = source
+	}
+	if !byName["habr"].Enabled || byName["habr"].Kind != "html_rss" {
+		t.Fatalf("unexpected habr source info: %#v", byName["habr"])
+	}
+	if byName["vc_rss"].Enabled {
+		t.Fatalf("expected vc_rss disabled, got %#v", byName["vc_rss"])
+	}
+	if byName["dzen"].Kind != "rss" || !byName["dzen"].Enabled {
+		t.Fatalf("unexpected custom rss source info: %#v", byName["dzen"])
+	}
+}
+
 func TestBuildParsersRegistersVCWithGoogleSearchProvider(t *testing.T) {
 	parsers := BuildParsers(config.Config{
 		HabrBaseURL:        "https://habr.com",

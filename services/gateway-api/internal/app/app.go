@@ -25,13 +25,15 @@ func New(cfg config.Config) *App {
 func (app *App) Handler() http.Handler {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
 	articles := articleclient.New(app.cfg.ArticleServiceURL, http.DefaultClient)
+	parser := parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient)
 	return httptransport.NewRouter(httptransport.RouterDependencies{
-		ServiceName:      app.cfg.ServiceName,
-		ArticleProvider:  articles,
-		FeedProvider:     feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
-		SearchProvider:   articles,
-		ParserJobClient:  parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient),
-		ReactionRecorder: reactions.NewPublisher(producer),
+		ServiceName:        app.cfg.ServiceName,
+		ArticleProvider:    articles,
+		FeedProvider:       feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
+		SearchProvider:     articles,
+		ParserJobClient:    parser,
+		ParserSourceClient: parser,
+		ReactionRecorder:   reactions.NewPublisher(producer),
 	})
 }
 
