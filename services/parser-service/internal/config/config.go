@@ -14,7 +14,9 @@ type Config struct {
 	HabrMaxAttempts    int
 	HabrRetryDelayMS   int
 	HabrRequestDelayMS int
+	VCBaseURL          string
 	VCRSSFeedURL       string
+	CustomRSSSources   string
 }
 
 func Load() Config {
@@ -26,8 +28,15 @@ func Load() Config {
 		HabrMaxAttempts:    sharedconfig.Int("HABR_MAX_ATTEMPTS", 3),
 		HabrRetryDelayMS:   sharedconfig.Int("HABR_RETRY_DELAY_MS", 500),
 		HabrRequestDelayMS: sharedconfig.Int("HABR_REQUEST_DELAY_MS", 500),
+		VCBaseURL:          sharedconfig.String("VC_BASE_URL", "https://vc.ru"),
 		VCRSSFeedURL:       sharedconfig.String("VC_RSS_FEED_URL", "https://vc.ru/rss"),
+		CustomRSSSources:   sharedconfig.String("CUSTOM_RSS_SOURCES", ""),
 	}
+}
+
+type RSSSource struct {
+	Name string
+	URL  string
 }
 
 func (cfg Config) BrokerList() []string {
@@ -40,4 +49,22 @@ func (cfg Config) BrokerList() []string {
 		}
 	}
 	return brokers
+}
+
+func (cfg Config) RSSSourceList() []RSSSource {
+	parts := strings.Split(cfg.CustomRSSSources, ",")
+	sources := make([]RSSSource, 0, len(parts))
+	for _, part := range parts {
+		name, sourceURL, ok := strings.Cut(part, "=")
+		if !ok {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		sourceURL = strings.TrimSpace(sourceURL)
+		if name == "" || sourceURL == "" {
+			continue
+		}
+		sources = append(sources, RSSSource{Name: name, URL: sourceURL})
+	}
+	return sources
 }

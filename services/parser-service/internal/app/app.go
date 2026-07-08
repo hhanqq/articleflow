@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
 	"github.com/hanq/articleflow/services/parser-service/internal/jobs"
-	"github.com/hanq/articleflow/services/parser-service/internal/parsers/habr"
-	"github.com/hanq/articleflow/services/parser-service/internal/parsers/rssfeed"
 	"github.com/hanq/articleflow/services/parser-service/internal/search"
+	"github.com/hanq/articleflow/services/parser-service/internal/sources"
 	httptransport "github.com/hanq/articleflow/services/parser-service/internal/transport/http"
 )
 
@@ -25,18 +23,7 @@ func New(cfg config.Config) *App {
 
 func (app *App) Handler() http.Handler {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
-	habrClient := habr.NewClient(habr.ClientOptions{
-		BaseURL:     app.cfg.HabrBaseURL,
-		MaxAttempts: app.cfg.HabrMaxAttempts,
-		RetryDelay:  time.Duration(app.cfg.HabrRetryDelayMS) * time.Millisecond,
-		Waiter:      habr.FixedDelayWaiter{Delay: time.Duration(app.cfg.HabrRequestDelayMS) * time.Millisecond},
-	})
-	vcClient := rssfeed.NewClient(rssfeed.ClientOptions{
-		SourceName: "vc",
-		FeedURL:    app.cfg.VCRSSFeedURL,
-		Language:   "ru",
-	})
-	searchUsecase := search.NewUsecase(producer, []search.Parser{habrClient, vcClient})
+	searchUsecase := search.NewUsecase(producer, sources.BuildParsers(app.cfg))
 	manager := jobs.NewManager(jobs.NewMemoryStore(), searchUsecase)
 
 	mux := http.NewServeMux()

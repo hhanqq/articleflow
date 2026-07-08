@@ -43,3 +43,19 @@ func TestBrokerListSplitsCommaSeparatedBrokers(t *testing.T) {
 		t.Fatalf("unexpected brokers: %#v", brokers)
 	}
 }
+
+func TestRSSSourceListParsesConfiguredSources(t *testing.T) {
+	cfg := Config{CustomRSSSources: "dzen=https://dzen.ru/rss, yandex=https://news.yandex.ru/index.rss , broken"}
+
+	sources := cfg.RSSSourceList()
+
+	if len(sources) != 2 {
+		t.Fatalf("expected 2 rss sources, got %d", len(sources))
+	}
+	if sources[0].Name != "dzen" || sources[0].URL != "https://dzen.ru/rss" {
+		t.Fatalf("unexpected first source: %#v", sources[0])
+	}
+	if sources[1].Name != "yandex" || sources[1].URL != "https://news.yandex.ru/index.rss" {
+		t.Fatalf("unexpected second source: %#v", sources[1])
+	}
+}
