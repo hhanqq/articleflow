@@ -33,7 +33,10 @@ type ArticleSearchRequest struct {
 }
 
 type ArticleSearchResponse struct {
-	Articles []articlev1.Article `json:"articles"`
+	Articles      []articlev1.Article `json:"articles"`
+	Limit         int                 `json:"limit"`
+	Offset        int                 `json:"offset"`
+	ReturnedCount int                 `json:"returned_count"`
 }
 
 func NewArticleHandler(reader ArticleReader) http.Handler {
@@ -93,6 +96,11 @@ func NewArticleSearchHandler(searcher ArticleSearcher) http.Handler {
 		}
 		response.Header().Set("Content-Type", "application/json")
 		response.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(response).Encode(ArticleSearchResponse{Articles: articles})
+		_ = json.NewEncoder(response).Encode(ArticleSearchResponse{
+			Articles:      articles,
+			Limit:         query.Limit,
+			Offset:        query.Offset,
+			ReturnedCount: len(articles),
+		})
 	})
 }

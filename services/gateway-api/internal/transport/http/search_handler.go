@@ -24,7 +24,10 @@ type SearchRequest struct {
 }
 
 type SearchResponse struct {
-	Candidates []parserv1.ArticleCandidate `json:"candidates"`
+	Candidates    []parserv1.ArticleCandidate `json:"candidates"`
+	Limit         int                         `json:"limit"`
+	Offset        int                         `json:"offset"`
+	ReturnedCount int                         `json:"returned_count"`
 }
 
 func NewSearchHandler(provider SearchProvider) http.Handler {
@@ -61,7 +64,12 @@ func NewSearchHandler(provider SearchProvider) http.Handler {
 
 		response.Header().Set("Content-Type", "application/json")
 		response.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(response).Encode(SearchResponse{Candidates: candidates})
+		_ = json.NewEncoder(response).Encode(SearchResponse{
+			Candidates:    candidates,
+			Limit:         query.Normalize().Limit,
+			Offset:        query.Normalize().Offset,
+			ReturnedCount: len(candidates),
+		})
 	})
 }
 

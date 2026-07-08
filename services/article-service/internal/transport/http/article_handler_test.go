@@ -106,6 +106,9 @@ func TestArticleSearchHandlerReturnsStoredArticles(t *testing.T) {
 	if len(payload.Articles) != 1 {
 		t.Fatalf("expected 1 article, got %d", len(payload.Articles))
 	}
+	if payload.Limit != 1 || payload.Offset != 1 || payload.ReturnedCount != 1 {
+		t.Fatalf("unexpected pagination metadata: %#v", payload)
+	}
 	if payload.Articles[0].ID != "vc:1" {
 		t.Fatalf("unexpected article id: %s", payload.Articles[0].ID)
 	}

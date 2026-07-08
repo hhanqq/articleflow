@@ -47,4 +47,7 @@ func TestSearchHandlerReturnsCandidates(t *testing.T) {
 	if len(payload.Candidates) != 1 {
 		t.Fatalf("expected 1 candidate, got %d", len(payload.Candidates))
 	}
+	if payload.Limit != 10 || payload.Offset != 0 || payload.ReturnedCount != 1 {
+		t.Fatalf("unexpected pagination metadata: %#v", payload)
+	}
 }
