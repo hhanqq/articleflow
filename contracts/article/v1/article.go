@@ -45,6 +45,31 @@ type ArticlePreview struct {
 	PublishedAt time.Time
 }
 
+type SearchQuery struct {
+	Text    string
+	Sources []string
+	Limit   int
+}
+
+func (query SearchQuery) Normalize() SearchQuery {
+	query.Text = strings.TrimSpace(query.Text)
+	if query.Limit <= 0 {
+		query.Limit = 20
+	}
+	if query.Limit > 100 {
+		query.Limit = 100
+	}
+	return query
+}
+
+func (query SearchQuery) Validate() error {
+	query = query.Normalize()
+	if query.Text == "" {
+		return errors.New("search query text is required")
+	}
+	return nil
+}
+
 type Source struct {
 	ID        string
 	Name      string
@@ -52,4 +77,3 @@ type Source struct {
 	Enabled   bool
 	CreatedAt time.Time
 }
-

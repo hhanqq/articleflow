@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
 	articleclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/article"
 	feedclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/feed"
@@ -25,11 +24,12 @@ func New(cfg config.Config) *App {
 
 func (app *App) Handler() http.Handler {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
+	articles := articleclient.New(app.cfg.ArticleServiceURL, http.DefaultClient)
 	return httptransport.NewRouter(httptransport.RouterDependencies{
 		ServiceName:      app.cfg.ServiceName,
-		ArticleProvider:  articleclient.New(app.cfg.ArticleServiceURL, http.DefaultClient),
+		ArticleProvider:  articles,
 		FeedProvider:     feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
-		SearchProvider:   emptySearchProvider{},
+		SearchProvider:   articles,
 		ParserJobClient:  parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient),
 		ReactionRecorder: reactions.NewPublisher(producer),
 	})
@@ -58,10 +58,4 @@ func (app *App) Run(ctx context.Context) error {
 		}
 		return err
 	}
-}
-
-type emptySearchProvider struct{}
-
-func (emptySearchProvider) Search(_ parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
-	return nil, nil
 }

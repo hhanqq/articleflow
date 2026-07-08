@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +22,7 @@ type MemoryArticleStore struct {
 type ArticleStore interface {
 	Save(ctx context.Context, article articlev1.Article) (articlev1.Article, error)
 	GetByID(ctx context.Context, id string) (articlev1.Article, bool, error)
+	Search(ctx context.Context, query articlev1.SearchQuery) ([]articlev1.Article, error)
 }
 
 func NewMemoryArticleStore() *MemoryArticleStore {
@@ -52,6 +55,40 @@ func (store *MemoryArticleStore) GetByID(_ context.Context, id string) (articlev
 	defer store.mu.RUnlock()
 	article, ok := store.byID[id]
 	return article, ok, nil
+}
+
+func (store *MemoryArticleStore) Search(_ context.Context, query articlev1.SearchQuery) ([]articlev1.Article, error) {
+	query = query.Normalize()
+	terms := searchTerms(query.Text)
+	sources := sourceSet(query.Sources)
+
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	articles := make([]articlev1.Article, 0, len(store.byID))
+	for _, article := range store.byID {
+		if len(sources) > 0 && !sources[strings.ToLower(article.SourceName)] {
+			continue
+		}
+		text := strings.ToLower(strings.Join([]string{
+			article.Title,
+			article.Summary,
+			article.Content,
+			article.URL,
+			article.Author,
+			strings.Join(article.Tags, " "),
+		}, " "))
+		if !matchesAllTerms(text, terms) {
+			continue
+		}
+		articles = append(articles, article)
+	}
+	sort.SliceStable(articles, func(i, j int) bool {
+		return articles[i].PublishedAt.After(articles[j].PublishedAt)
+	})
+	if len(articles) > query.Limit {
+		articles = articles[:query.Limit]
+	}
+	return articles, nil
 }
 
 type IngestUsecase struct {
@@ -112,4 +149,49 @@ func articleID(event eventsv1.ArticleDiscoveredEvent) string {
 func stableArticleID(value string) string {
 	sum := sha1.Sum([]byte(value))
 	return "article-" + hex.EncodeToString(sum[:8])
+}
+
+func searchTerms(text string) []string {
+	fields := strings.Fields(strings.ToLower(text))
+	terms := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.Trim(field, `"'.,:;!?()[]{}<>`)
+		if len([]rune(field)) < 2 || isSearchStopWord(field) {
+			continue
+		}
+		terms = append(terms, field)
+	}
+	return terms
+}
+
+func matchesAllTerms(text string, terms []string) bool {
+	if len(terms) == 0 {
+		return false
+	}
+	for _, term := range terms {
+		if !strings.Contains(text, term) {
+			return false
+		}
+	}
+	return true
+}
+
+func sourceSet(sources []string) map[string]bool {
+	set := make(map[string]bool, len(sources))
+	for _, source := range sources {
+		source = strings.ToLower(strings.TrimSpace(source))
+		if source != "" {
+			set[source] = true
+		}
+	}
+	return set
+}
+
+func isSearchStopWord(word string) bool {
+	switch word {
+	case "и", "в", "во", "на", "по", "с", "со", "о", "об", "от", "до", "для", "из", "за", "к", "ко", "a", "an", "the", "of", "to", "in", "on", "for", "and":
+		return true
+	default:
+		return false
+	}
 }

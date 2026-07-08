@@ -76,6 +76,55 @@ func TestIngestDiscoveredDeduplicatesByURL(t *testing.T) {
 	}
 }
 
+func TestMemoryArticleStoreSearchesStoredArticles(t *testing.T) {
+	store := NewMemoryArticleStore()
+	articles := []articlev1.Article{
+		{
+			ID:          "vc:1",
+			SourceName:  "vc",
+			ExternalID:  "1",
+			URL:         "https://vc.ru/travel/1",
+			Title:       "Путешествие в Китай",
+			Summary:     "Маршрут по Пекину",
+			PublishedAt: time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:          "habr:2",
+			SourceName:  "habr",
+			ExternalID:  "2",
+			URL:         "https://habr.com/ru/articles/2/",
+			Title:       "Как планировать путешествие в Китай",
+			Summary:     "Опыт поездки и бюджет",
+			PublishedAt: time.Date(2026, 7, 2, 10, 0, 0, 0, time.UTC),
+		},
+		{
+			ID:          "habr:3",
+			SourceName:  "habr",
+			ExternalID:  "3",
+			URL:         "https://habr.com/ru/articles/3/",
+			Title:       "Go Kafka",
+			PublishedAt: time.Date(2026, 7, 3, 10, 0, 0, 0, time.UTC),
+		},
+	}
+	for _, article := range articles {
+		if _, err := store.Save(context.Background(), article); err != nil {
+			t.Fatalf("save article: %v", err)
+		}
+	}
+
+	found, err := store.Search(context.Background(), articlev1.SearchQuery{Text: "путешествие в китай", Limit: 10})
+
+	if err != nil {
+		t.Fatalf("search articles: %v", err)
+	}
+	if len(found) != 2 {
+		t.Fatalf("expected 2 articles, got %d", len(found))
+	}
+	if found[0].ID != "habr:2" {
+		t.Fatalf("expected newest match first, got %s", found[0].ID)
+	}
+}
+
 type failingArticleStore struct{}
 
 func (failingArticleStore) Save(_ context.Context, _ articlev1.Article) (articlev1.Article, error) {
@@ -84,6 +133,10 @@ func (failingArticleStore) Save(_ context.Context, _ articlev1.Article) (article
 
 func (failingArticleStore) GetByID(_ context.Context, _ string) (articlev1.Article, bool, error) {
 	return articlev1.Article{}, false, errors.New("storage unavailable")
+}
+
+func (failingArticleStore) Search(_ context.Context, _ articlev1.SearchQuery) ([]articlev1.Article, error) {
+	return nil, errors.New("storage unavailable")
 }
 
 func TestIngestDiscoveredReturnsStoreError(t *testing.T) {

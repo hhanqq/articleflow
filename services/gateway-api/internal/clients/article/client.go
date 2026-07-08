@@ -8,6 +8,7 @@ import (
 	"time"
 
 	articlev1 "github.com/hanq/articleflow/contracts/article/v1"
+	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
 
 type Client struct {
@@ -17,6 +18,16 @@ type Client struct {
 
 type responsePayload struct {
 	Article articlev1.Article `json:"article"`
+}
+
+type searchRequest struct {
+	Query   string   `json:"query"`
+	Sources []string `json:"sources"`
+	Limit   int      `json:"limit"`
+}
+
+type searchResponse struct {
+	Articles []articlev1.Article `json:"articles"`
 }
 
 func New(baseURL string, httpClient *http.Client) *Client {
@@ -55,4 +66,49 @@ func (client *Client) GetByID(id string) (articlev1.Article, bool) {
 		return articlev1.Article{}, false
 	}
 	return payload.Article, true
+}
+
+func (client *Client) Search(query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
+	payload, err := json.Marshal(searchRequest{
+		Query:   query.Text,
+		Sources: query.Sources,
+		Limit:   query.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.httpClient.Post(client.baseURL+"/api/v1/articles/search", "application/json", strings.NewReader(string(payload)))
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return nil, errStatus(response.StatusCode)
+	}
+	var decoded searchResponse
+	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+		return nil, err
+	}
+	candidates := make([]parserv1.ArticleCandidate, 0, len(decoded.Articles))
+	for _, article := range decoded.Articles {
+		candidates = append(candidates, parserv1.ArticleCandidate{
+			SourceName:  article.SourceName,
+			ExternalID:  article.ExternalID,
+			URL:         article.URL,
+			Title:       article.Title,
+			Summary:     article.Summary,
+			Content:     article.Content,
+			Author:      article.Author,
+			Tags:        article.Tags,
+			Language:    article.Language,
+			PublishedAt: article.PublishedAt,
+		})
+	}
+	return candidates, nil
+}
+
+type errStatus int
+
+func (err errStatus) Error() string {
+	return "article-service returned status " + http.StatusText(int(err))
 }

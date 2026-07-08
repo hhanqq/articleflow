@@ -21,6 +21,10 @@ func (database *fakeDatabase) ExecContext(context.Context, string, ...any) (sql.
 	return nil, nil
 }
 
+func (database *fakeDatabase) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	return nil, nil
+}
+
 func (database *fakeDatabase) QueryRowContext(context.Context, string, ...any) *sql.Row {
 	return &sql.Row{}
 }

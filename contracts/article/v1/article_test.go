@@ -25,3 +25,24 @@ func TestArticleValidateRequiresTitle(t *testing.T) {
 	}
 }
 
+func TestSearchQueryNormalizeAndValidate(t *testing.T) {
+	query := SearchQuery{Text: "  путешествие в китай  "}
+
+	normalized := query.Normalize()
+
+	if normalized.Text != "путешествие в китай" {
+		t.Fatalf("unexpected text: %s", normalized.Text)
+	}
+	if normalized.Limit != 20 {
+		t.Fatalf("expected default limit 20, got %d", normalized.Limit)
+	}
+	if err := normalized.Validate(); err != nil {
+		t.Fatalf("expected valid query, got %v", err)
+	}
+}
+
+func TestSearchQueryValidateRequiresText(t *testing.T) {
+	if err := (SearchQuery{}).Validate(); err == nil {
+		t.Fatal("expected validation error")
+	}
+}

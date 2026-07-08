@@ -95,9 +95,15 @@ func newKafkaConsumer(cfg config.Config) runtimeConsumer {
 	)
 }
 
-func newHTTPHandler(serviceName string, reader httptransport.ArticleReader) http.Handler {
+type articleHTTPStore interface {
+	httptransport.ArticleReader
+	httptransport.ArticleSearcher
+}
+
+func newHTTPHandler(serviceName string, reader articleHTTPStore) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler(serviceName))
 	mux.Handle("/api/v1/articles", httptransport.NewArticleHandler(reader))
+	mux.Handle("/api/v1/articles/search", httptransport.NewArticleSearchHandler(reader))
 	return mux
 }

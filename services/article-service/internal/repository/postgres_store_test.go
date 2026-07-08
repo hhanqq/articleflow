@@ -31,6 +31,10 @@ func (execer *recordingExecer) ExecContext(_ context.Context, query string, args
 	return fakeExecResult{}, nil
 }
 
+func (execer *recordingExecer) QueryContext(_ context.Context, _ string, _ ...any) (*sql.Rows, error) {
+	return nil, nil
+}
+
 func (execer *recordingExecer) QueryRowContext(_ context.Context, _ string, _ ...any) *sql.Row {
 	return &sql.Row{}
 }
@@ -74,5 +78,28 @@ func TestPostgresArticleStoreSaveReturnsExecError(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected exec error")
+	}
+}
+
+func TestBuildSearchArticlesQueryFiltersByTermsSourcesAndLimit(t *testing.T) {
+	query, args := BuildSearchArticlesQuery([]string{"путешествие", "китай"}, []string{"vc", "habr"}, 5)
+
+	if !strings.Contains(query, "FROM articles") {
+		t.Fatalf("expected articles query, got %s", query)
+	}
+	if !strings.Contains(query, "LIKE $1") || !strings.Contains(query, "LIKE $2") {
+		t.Fatalf("expected term placeholders, got %s", query)
+	}
+	if !strings.Contains(query, "lower(source_name) = $3") || !strings.Contains(query, "lower(source_name) = $4") {
+		t.Fatalf("expected source placeholders, got %s", query)
+	}
+	if !strings.Contains(query, "LIMIT $5") {
+		t.Fatalf("expected limit placeholder, got %s", query)
+	}
+	if len(args) != 5 {
+		t.Fatalf("expected 5 args, got %d", len(args))
+	}
+	if args[0] != "%путешествие%" || args[1] != "%китай%" || args[4] != 5 {
+		t.Fatalf("unexpected args: %#v", args)
 	}
 }

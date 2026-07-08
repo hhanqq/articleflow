@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -57,5 +58,41 @@ func TestArticleHandlerReturnsNotFound(t *testing.T) {
 
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("expected status 404, got %d", response.Code)
+	}
+}
+
+func TestArticleSearchHandlerReturnsStoredArticles(t *testing.T) {
+	store := usecase.NewMemoryArticleStore()
+	article := articlev1.Article{
+		ID:          "vc:1",
+		SourceName:  "vc",
+		ExternalID:  "1",
+		URL:         "https://vc.ru/travel/1",
+		Title:       "Путешествие в Китай",
+		Summary:     "Маршрут и бюджет",
+		PublishedAt: time.Date(2026, 7, 8, 10, 0, 0, 0, time.UTC),
+		ParsedAt:    time.Date(2026, 7, 8, 10, 5, 0, 0, time.UTC),
+	}
+	if _, err := store.Save(context.Background(), article); err != nil {
+		t.Fatalf("save article: %v", err)
+	}
+	handler := NewArticleSearchHandler(store)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/articles/search", bytes.NewBufferString(`{"query":"путешествие в китай","limit":5}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
+	}
+	var payload ArticleSearchResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(payload.Articles) != 1 {
+		t.Fatalf("expected 1 article, got %d", len(payload.Articles))
+	}
+	if payload.Articles[0].ID != "vc:1" {
+		t.Fatalf("unexpected article id: %s", payload.Articles[0].ID)
 	}
 }
