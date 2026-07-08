@@ -39,6 +39,7 @@ func (store *PostgresFeedStore) List(limit int) ([]feedv1.FeedItem, error) {
 	for rows.Next() {
 		var item feedv1.FeedItem
 		var tagsPayload string
+		var scoreReasonsPayload string
 		if err := rows.Scan(
 			&item.ArticleID,
 			&item.Title,
@@ -47,6 +48,7 @@ func (store *PostgresFeedStore) List(limit int) ([]feedv1.FeedItem, error) {
 			&item.URL,
 			&tagsPayload,
 			&item.Score,
+			&scoreReasonsPayload,
 			&item.PublishedAt,
 		); err != nil {
 			return nil, err
@@ -56,6 +58,11 @@ func (store *PostgresFeedStore) List(limit int) ([]feedv1.FeedItem, error) {
 			return nil, err
 		}
 		item.Tags = tags
+		scoreReasons, err := DecodeStringArrayJSON(scoreReasonsPayload)
+		if err != nil {
+			return nil, err
+		}
+		item.ScoreReasons = scoreReasons
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {

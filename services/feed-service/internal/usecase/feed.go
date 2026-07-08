@@ -40,14 +40,15 @@ func (feed *MemoryFeed) UpsertScoredItem(event eventsv1.FeedItemScoredEvent) err
 	feed.mu.Lock()
 	defer feed.mu.Unlock()
 	feed.scored[event.ArticleID] = feedv1.FeedItem{
-		ArticleID:   event.ArticleID,
-		Title:       event.Title,
-		Summary:     event.Summary,
-		SourceName:  event.SourceName,
-		URL:         event.URL,
-		Tags:        append([]string(nil), event.Tags...),
-		Score:       event.Score,
-		PublishedAt: event.PublishedAt,
+		ArticleID:    event.ArticleID,
+		Title:        event.Title,
+		Summary:      event.Summary,
+		SourceName:   event.SourceName,
+		URL:          event.URL,
+		Tags:         append([]string(nil), event.Tags...),
+		Score:        event.Score,
+		ScoreReasons: append([]string(nil), event.ScoreReasons...),
+		PublishedAt:  event.PublishedAt,
 	}
 	return nil
 }

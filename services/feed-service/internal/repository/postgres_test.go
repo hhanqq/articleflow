@@ -10,15 +10,16 @@ import (
 
 func TestBuildUpsertFeedItemQuery(t *testing.T) {
 	event := eventsv1.FeedItemScoredEvent{
-		ArticleID:   "habr:1",
-		SourceName:  "habr",
-		URL:         "https://habr.com/1",
-		Title:       "Go Kafka",
-		Summary:     "Streaming",
-		Tags:        []string{"go", "kafka"},
-		Score:       42,
-		PublishedAt: time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
-		ScoredAt:    time.Date(2026, 7, 7, 11, 0, 0, 0, time.UTC),
+		ArticleID:    "habr:1",
+		SourceName:   "habr",
+		URL:          "https://habr.com/1",
+		Title:        "Go Kafka",
+		Summary:      "Streaming",
+		Tags:         []string{"go", "kafka"},
+		Score:        42,
+		ScoreReasons: []string{"query_match", "freshness"},
+		PublishedAt:  time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
+		ScoredAt:     time.Date(2026, 7, 7, 11, 0, 0, 0, time.UTC),
 	}
 
 	query, args := BuildUpsertFeedItemQuery(event)
@@ -26,8 +27,8 @@ func TestBuildUpsertFeedItemQuery(t *testing.T) {
 	if query == "" {
 		t.Fatal("expected query")
 	}
-	if len(args) != 9 {
-		t.Fatalf("expected 9 args, got %d", len(args))
+	if len(args) != 10 {
+		t.Fatalf("expected 10 args, got %d", len(args))
 	}
 	if args[0] != event.ArticleID {
 		t.Fatalf("unexpected first arg: %v", args[0])
@@ -57,6 +58,26 @@ func TestBuildUpsertFeedItemQueryNormalizesNilTags(t *testing.T) {
 	}
 }
 
+func TestBuildUpsertFeedItemQueryNormalizesNilScoreReasons(t *testing.T) {
+	event := eventsv1.FeedItemScoredEvent{
+		ArticleID:  "habr:1",
+		SourceName: "habr",
+		URL:        "https://habr.com/1",
+		Title:      "Go Kafka",
+		ScoredAt:   time.Date(2026, 7, 7, 11, 0, 0, 0, time.UTC),
+	}
+
+	_, args := BuildUpsertFeedItemQuery(event)
+
+	reasons, ok := args[7].([]string)
+	if !ok {
+		t.Fatalf("expected score reasons arg to be []string, got %T", args[7])
+	}
+	if reasons == nil {
+		t.Fatal("expected non-nil empty score reasons slice")
+	}
+}
+
 func TestBuildListFeedItemsQueryNormalizesLimit(t *testing.T) {
 	query, args := BuildListFeedItemsQuery(0)
 
@@ -65,6 +86,9 @@ func TestBuildListFeedItemsQueryNormalizesLimit(t *testing.T) {
 	}
 	if !strings.Contains(query, "array_to_json(tags)::text") {
 		t.Fatalf("expected tags JSON projection, got %s", query)
+	}
+	if !strings.Contains(query, "array_to_json(score_reasons)::text") {
+		t.Fatalf("expected score reasons JSON projection, got %s", query)
 	}
 	if !strings.Contains(query, "ROW_NUMBER() OVER (PARTITION BY lower(source_name)") {
 		t.Fatalf("expected source-balanced row numbers, got %s", query)

@@ -360,6 +360,7 @@ function renderFeed() {
 
 function renderArticle(item) {
   const tags = item.tags.map((tag) => `<span>${escapeHTML(tag)}</span>`).join("");
+  const reasons = item.scoreReasons.map((reason) => `<span>${escapeHTML(reason)}</span>`).join("");
   const date = formatDate(item.publishedAt);
   return `
     <article class="feed-item" data-article-id="${escapeHTML(item.id)}">
@@ -371,6 +372,7 @@ function renderArticle(item) {
       <h2>${escapeHTML(item.title)}</h2>
       <p>${escapeHTML(stripHTML(item.summary)).slice(0, 420)}</p>
       <div class="tag-row">${tags}</div>
+      ${reasons ? `<div class="reason-row">${reasons}</div>` : ""}
       <div class="article-actions">
         <button type="button" data-open-detail>Читать здесь</button>
         <a href="${escapeHTML(item.url)}" target="_blank" rel="noreferrer" data-reaction="open">Открыть</a>

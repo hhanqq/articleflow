@@ -26,6 +26,7 @@ test("normalizeFeedItem accepts Go JSON field names from gateway", () => {
     URL: "https://habr.com/1",
     Tags: ["go", "kafka"],
     Score: 23.45,
+    ScoreReasons: ["query_match:go", "freshness"],
     PublishedAt: "2026-07-07T12:00:00Z",
   });
 
@@ -35,6 +36,7 @@ test("normalizeFeedItem accepts Go JSON field names from gateway", () => {
   assert.equal(item.url, "https://habr.com/1");
   assert.deepEqual(item.tags, ["go", "kafka"]);
   assert.equal(item.score, 23.45);
+  assert.deepEqual(item.scoreReasons, ["query_match:go", "freshness"]);
 });
 
 test("normalizeCandidateItem builds stable feed item id from parser candidate", () => {

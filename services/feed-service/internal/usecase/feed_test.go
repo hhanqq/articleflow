@@ -94,6 +94,31 @@ func TestUpsertScoredItemSortsByRankingScore(t *testing.T) {
 	}
 }
 
+func TestUpsertScoredItemCarriesScoreReasons(t *testing.T) {
+	feed := NewMemoryFeed()
+	if err := feed.UpsertScoredItem(eventsv1.FeedItemScoredEvent{
+		ArticleID:    "reasoned",
+		Title:        "Reasoned score",
+		SourceName:   "vc",
+		URL:          "https://vc.ru/reasoned",
+		Score:        50,
+		ScoreReasons: []string{"freshness", "source_diversity"},
+	}); err != nil {
+		t.Fatalf("upsert item: %v", err)
+	}
+
+	items, err := feed.List(10)
+	if err != nil {
+		t.Fatalf("list feed: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if len(items[0].ScoreReasons) != 2 || items[0].ScoreReasons[0] != "freshness" {
+		t.Fatalf("unexpected score reasons: %#v", items[0].ScoreReasons)
+	}
+}
+
 func TestListBalancesScoredItemsAcrossSources(t *testing.T) {
 	feed := NewMemoryFeed()
 	events := []eventsv1.FeedItemScoredEvent{

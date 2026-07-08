@@ -11,6 +11,10 @@ func BuildUpsertFeedItemQuery(event eventsv1.FeedItemScoredEvent) (string, []any
 	if tags == nil {
 		tags = []string{}
 	}
+	scoreReasons := event.ScoreReasons
+	if scoreReasons == nil {
+		scoreReasons = []string{}
+	}
 	query := `
 INSERT INTO feed_items (
     article_id,
@@ -20,10 +24,11 @@ INSERT INTO feed_items (
     summary,
     tags,
     score,
+    score_reasons,
     published_at,
     scored_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
 ON CONFLICT (article_id) DO UPDATE SET
     source_name = EXCLUDED.source_name,
@@ -32,6 +37,7 @@ ON CONFLICT (article_id) DO UPDATE SET
     summary = EXCLUDED.summary,
     tags = EXCLUDED.tags,
     score = EXCLUDED.score,
+    score_reasons = EXCLUDED.score_reasons,
     published_at = EXCLUDED.published_at,
     scored_at = EXCLUDED.scored_at,
     updated_at = now()
@@ -44,6 +50,7 @@ ON CONFLICT (article_id) DO UPDATE SET
 		event.Summary,
 		tags,
 		event.Score,
+		scoreReasons,
 		event.PublishedAt,
 		event.ScoredAt,
 	}
@@ -67,11 +74,12 @@ WITH ranked_feed_items AS (
     url,
     tags,
     score,
+    score_reasons,
     published_at,
     ROW_NUMBER() OVER (PARTITION BY lower(source_name) ORDER BY score DESC, published_at DESC NULLS LAST) AS source_rank
   FROM feed_items
 )
-SELECT article_id, title, summary, source_name, url, array_to_json(tags)::text, score, published_at
+SELECT article_id, title, summary, source_name, url, array_to_json(tags)::text, score, array_to_json(score_reasons)::text, published_at
 FROM ranked_feed_items
 ORDER BY source_rank ASC, score DESC, published_at DESC NULLS LAST
 LIMIT $1
@@ -80,12 +88,16 @@ LIMIT $1
 }
 
 func DecodeTagsJSON(payload string) ([]string, error) {
+	return DecodeStringArrayJSON(payload)
+}
+
+func DecodeStringArrayJSON(payload string) ([]string, error) {
 	if payload == "" {
 		return nil, nil
 	}
-	var tags []string
-	if err := json.Unmarshal([]byte(payload), &tags); err != nil {
+	var values []string
+	if err := json.Unmarshal([]byte(payload), &values); err != nil {
 		return nil, err
 	}
-	return tags, nil
+	return values, nil
 }

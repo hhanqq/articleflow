@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	eventsv1 "github.com/hanq/articleflow/contracts/events/v1"
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
@@ -36,5 +37,30 @@ func TestRankBoostsQueryMatchesAndFreshness(t *testing.T) {
 	if ranked[0].Score <= ranked[1].Score {
 		t.Fatalf("expected first score to be higher")
 	}
+	if len(ranked[0].ScoreReasons) == 0 {
+		t.Fatal("expected score reasons for ranked item")
+	}
 }
 
+func TestRankDiscoveredAddsScoreReasons(t *testing.T) {
+	ranker := NewRanker()
+	event := eventsv1.ArticleDiscoveredEvent{
+		SourceName:   "habr",
+		ExternalID:   "123",
+		URL:          "https://habr.com/ru/articles/123/",
+		Title:        "Go Kafka",
+		Summary:      "Streaming microservices",
+		Tags:         []string{"go", "kafka"},
+		PublishedAt:  time.Now().UTC().Add(-2 * time.Hour),
+		DiscoveredAt: time.Now().UTC(),
+	}
+
+	scored := ranker.RankDiscovered(event)
+
+	if scored.Score <= 0 {
+		t.Fatalf("expected positive score, got %f", scored.Score)
+	}
+	if len(scored.ScoreReasons) == 0 {
+		t.Fatal("expected score reasons")
+	}
+}

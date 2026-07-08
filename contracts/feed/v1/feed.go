@@ -3,14 +3,15 @@ package feedv1
 import "time"
 
 type FeedItem struct {
-	ArticleID   string
-	Title       string
-	Summary     string
-	SourceName  string
-	URL         string
-	Tags        []string
-	Score       float64
-	PublishedAt time.Time
+	ArticleID    string
+	Title        string
+	Summary      string
+	SourceName   string
+	URL          string
+	Tags         []string
+	Score        float64
+	ScoreReasons []string
+	PublishedAt  time.Time
 }
 
 type GetFeedRequest struct {
@@ -23,4 +24,3 @@ type GetFeedResponse struct {
 	Items      []FeedItem
 	NextCursor string
 }
-

@@ -29,7 +29,9 @@ func (ranker *Ranker) Rank(query parserv1.SearchQuery, items []feedv1.FeedItem) 
 	terms := strings.Fields(strings.ToLower(query.Text))
 	ranked := append([]feedv1.FeedItem(nil), items...)
 	for index := range ranked {
-		ranked[index].Score = ranker.score(terms, ranked[index])
+		score, reasons := ranker.scoreWithReasons(terms, ranked[index])
+		ranked[index].Score = score
+		ranked[index].ScoreReasons = reasons
 	}
 	sort.SliceStable(ranked, func(i, j int) bool {
 		return ranked[i].Score > ranked[j].Score
@@ -47,45 +49,74 @@ func (ranker *Ranker) RankDiscovered(event eventsv1.ArticleDiscoveredEvent) even
 		Tags:        event.Tags,
 		PublishedAt: event.PublishedAt,
 	}
-	score := ranker.score(nil, item)
+	score, reasons := ranker.scoreWithReasons(nil, item)
 	if ranker.signals != nil {
 		ranker.signals.RememberArticle(item)
 	}
 	return eventsv1.FeedItemScoredEvent{
-		ArticleID:   item.ArticleID,
-		SourceName:  item.SourceName,
-		URL:         item.URL,
-		Title:       item.Title,
-		Summary:     item.Summary,
-		Tags:        append([]string(nil), item.Tags...),
-		Score:       score,
-		PublishedAt: item.PublishedAt,
-		ScoredAt:    ranker.now().UTC(),
+		ArticleID:    item.ArticleID,
+		SourceName:   item.SourceName,
+		URL:          item.URL,
+		Title:        item.Title,
+		Summary:      item.Summary,
+		Tags:         append([]string(nil), item.Tags...),
+		Score:        score,
+		ScoreReasons: reasons,
+		PublishedAt:  item.PublishedAt,
+		ScoredAt:     ranker.now().UTC(),
 	}
 }
 
 func (ranker *Ranker) score(terms []string, item feedv1.FeedItem) float64 {
+	score, _ := ranker.scoreWithReasons(terms, item)
+	return score
+}
+
+func (ranker *Ranker) scoreWithReasons(terms []string, item feedv1.FeedItem) (float64, []string) {
 	score := 0.0
+	reasons := make([]string, 0, 4)
 	text := strings.ToLower(item.Title + " " + item.Summary + " " + strings.Join(item.Tags, " "))
 	for _, term := range terms {
 		if strings.Contains(text, term) {
 			score += 10
+			reasons = append(reasons, "query_match:"+term)
 		}
 	}
 	if item.SourceName == "habr" {
 		score += 3
+		reasons = append(reasons, "source_boost:habr")
 	}
 	if !item.PublishedAt.IsZero() {
 		ageHours := ranker.now().UTC().Sub(item.PublishedAt).Hours()
 		if ageHours < 0 {
 			ageHours = 0
 		}
-		score += 20 / (1 + ageHours/24)
+		freshnessScore := 20 / (1 + ageHours/24)
+		score += freshnessScore
+		reasons = append(reasons, "freshness")
 	}
 	if ranker.signals != nil {
+		beforeSignals := score
 		score = ranker.signals.ApplyToScore(score, item)
+		if score != beforeSignals {
+			reasons = append(reasons, "reaction_signals")
+		}
 	}
-	return score
+	return score, compactReasons(reasons)
+}
+
+func compactReasons(reasons []string) []string {
+	seen := make(map[string]bool, len(reasons))
+	compacted := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		reason = strings.TrimSpace(reason)
+		if reason == "" || seen[reason] {
+			continue
+		}
+		seen[reason] = true
+		compacted = append(compacted, reason)
+	}
+	return compacted
 }
 
 func articleID(event eventsv1.ArticleDiscoveredEvent) string {

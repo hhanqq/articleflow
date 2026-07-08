@@ -177,6 +177,7 @@ h2 {
 
 .feed-item__meta span,
 .tag-row span,
+.reason-row span,
 #jobStatus {
   display: inline-flex;
   min-height: 28px;
@@ -202,11 +203,20 @@ h2 {
 }
 
 .tag-row,
+.reason-row,
 .article-actions,
 .form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.reason-row span {
+  min-height: 24px;
+  border-color: rgba(39, 84, 138, 0.22);
+  padding: 3px 8px;
+  color: var(--accent-2);
+  font-size: 12px;
 }
 
 .form-actions button {

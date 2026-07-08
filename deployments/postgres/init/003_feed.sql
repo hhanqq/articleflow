@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS feed_items (
     summary TEXT NOT NULL DEFAULT '',
     tags TEXT[] NOT NULL DEFAULT '{}',
     score DOUBLE PRECISION NOT NULL DEFAULT 0,
+    score_reasons TEXT[] NOT NULL DEFAULT '{}',
     published_at TIMESTAMPTZ,
     scored_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -3,6 +3,7 @@ const REACTION_TYPES = new Set(["like", "dislike", "skip", "save", "open"]);
 
 export function normalizeFeedItem(raw = {}) {
   const tags = raw.Tags ?? raw.tags ?? [];
+  const scoreReasons = raw.ScoreReasons ?? raw.score_reasons ?? [];
   return {
     id: String(raw.ArticleID ?? raw.article_id ?? raw.id ?? ""),
     title: String(raw.Title ?? raw.title ?? "Untitled"),
@@ -11,6 +12,7 @@ export function normalizeFeedItem(raw = {}) {
     url: String(raw.URL ?? raw.url ?? ""),
     tags: Array.isArray(tags) ? tags : [],
     score: Number(raw.Score ?? raw.score ?? 0),
+    scoreReasons: Array.isArray(scoreReasons) ? scoreReasons : [],
     publishedAt: String(raw.PublishedAt ?? raw.published_at ?? ""),
   };
 }

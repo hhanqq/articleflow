@@ -90,15 +90,16 @@ type ParserJobFailedEvent struct {
 }
 
 type FeedItemScoredEvent struct {
-	ArticleID   string
-	SourceName  string
-	URL         string
-	Title       string
-	Summary     string
-	Tags        []string
-	Score       float64
-	PublishedAt time.Time
-	ScoredAt    time.Time
+	ArticleID    string
+	SourceName   string
+	URL          string
+	Title        string
+	Summary      string
+	Tags         []string
+	Score        float64
+	ScoreReasons []string
+	PublishedAt  time.Time
+	ScoredAt     time.Time
 }
 
 func (event FeedItemScoredEvent) Validate() error {
