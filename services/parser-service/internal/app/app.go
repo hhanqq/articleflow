@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
+	"github.com/hanq/articleflow/packages/observability"
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
 	"github.com/hanq/articleflow/services/parser-service/internal/jobs"
 	"github.com/hanq/articleflow/services/parser-service/internal/search"
@@ -35,14 +36,17 @@ func (app *App) handlerWithStore(store jobs.Store) http.Handler {
 	sourceRegistry := sources.BuildRegistry(app.cfg)
 	searchUsecase := search.NewUsecase(producer, sourceRegistry.Parsers)
 	manager := jobs.NewManager(store, searchUsecase)
+	metrics := observability.NewMetricsRegistry()
+	metrics.Inc("articleflow_service_info")
 
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler(app.cfg.ServiceName))
+	mux.Handle("/metrics", observability.NewPrometheusHandler(app.cfg.ServiceName, metrics))
 	mux.Handle("/api/v1/parser/sources", httptransport.NewSourcesHandler(sourceRegistry.Sources))
 	jobsHandler := httptransport.NewJobsHandler(manager)
 	mux.Handle("/api/v1/parser/jobs", jobsHandler)
 	mux.Handle("/api/v1/parser/jobs/", jobsHandler)
-	return mux
+	return observability.InstrumentHTTPRequests(metrics, mux)
 }
 
 func (app *App) Run(ctx context.Context) error {

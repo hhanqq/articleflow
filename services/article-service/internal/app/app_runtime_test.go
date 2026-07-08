@@ -3,12 +3,15 @@ package app
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	eventsv1 "github.com/hanq/articleflow/contracts/events/v1"
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
 	"github.com/hanq/articleflow/services/article-service/internal/config"
+	"github.com/hanq/articleflow/services/article-service/internal/usecase"
 )
 
 type fakeRuntimeConsumer struct {
@@ -75,5 +78,20 @@ func TestRunConsumesDiscoveredArticleMessage(t *testing.T) {
 	}
 	if !consumer.closed {
 		t.Fatal("expected consumer to be closed")
+	}
+}
+
+func TestHTTPHandlerExposesMetricsRoute(t *testing.T) {
+	handler := newHTTPHandler("article-service", usecase.NewMemoryArticleStore())
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	if response.Body.String() == "" {
+		t.Fatal("expected metrics body")
 	}
 }

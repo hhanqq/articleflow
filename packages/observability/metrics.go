@@ -59,3 +59,16 @@ func NewPrometheusHandler(serviceName string, registry *MetricsRegistry) http.Ha
 		}
 	})
 }
+
+func InstrumentHTTPRequests(registry *MetricsRegistry, next http.Handler) http.Handler {
+	if registry == nil {
+		registry = NewMetricsRegistry()
+	}
+	if next == nil {
+		next = http.NotFoundHandler()
+	}
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		registry.Inc("articleflow_http_requests_total")
+		next.ServeHTTP(response, request)
+	})
+}

@@ -39,3 +39,22 @@ func TestPrometheusHandlerRendersCounters(t *testing.T) {
 		t.Fatalf("expected counter in metrics, got %q", body)
 	}
 }
+
+func TestInstrumentHTTPRequestsCountsRequests(t *testing.T) {
+	metrics := NewMetricsRegistry()
+	handler := InstrumentHTTPRequests(metrics, http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(http.StatusAccepted)
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/feed", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected status 202, got %d", response.Code)
+	}
+	snapshot := metrics.Snapshot()
+	if snapshot["articleflow_http_requests_total"] != 1 {
+		t.Fatalf("expected 1 counted request, got %g", snapshot["articleflow_http_requests_total"])
+	}
+}

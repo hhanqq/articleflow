@@ -31,3 +31,18 @@ func TestHandlerExposesHealthRoute(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", response.Code)
 	}
 }
+
+func TestHandlerExposesMetricsRoute(t *testing.T) {
+	handler := New(config.Config{ServiceName: "feed-service", HTTPAddr: ":0"}).Handler()
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	if response.Body.String() == "" {
+		t.Fatal("expected metrics body")
+	}
+}

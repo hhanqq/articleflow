@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
+	"github.com/hanq/articleflow/packages/observability"
 	"github.com/hanq/articleflow/services/feed-service/internal/config"
 	httptransport "github.com/hanq/articleflow/services/feed-service/internal/transport/http"
 	kafkatransport "github.com/hanq/articleflow/services/feed-service/internal/transport/kafka"
@@ -19,7 +20,7 @@ type App struct{ cfg config.Config }
 func New(cfg config.Config) *App { return &App{cfg: cfg} }
 
 func (app *App) Handler() http.Handler {
-	return newHTTPHandler(usecase.NewMemoryFeed())
+	return newHTTPHandler(app.cfg.ServiceName, usecase.NewMemoryFeed())
 }
 
 func (app *App) Run(ctx context.Context) error {
@@ -30,7 +31,7 @@ func (app *App) Run(ctx context.Context) error {
 	defer closeStore()
 	server := &http.Server{
 		Addr:    app.cfg.HTTPAddr,
-		Handler: newHTTPHandler(feed),
+		Handler: newHTTPHandler(app.cfg.ServiceName, feed),
 	}
 	consumer := articleflowkafka.NewReaderConsumer(
 		app.cfg.BrokerList(),
@@ -72,11 +73,17 @@ func (app *App) Run(ctx context.Context) error {
 	}
 }
 
-func newHTTPHandler(feed usecase.FeedStore) http.Handler {
+func newHTTPHandler(serviceName string, feed usecase.FeedStore) http.Handler {
+	if serviceName == "" {
+		serviceName = "feed-service"
+	}
+	metrics := observability.NewMetricsRegistry()
+	metrics.Inc("articleflow_service_info")
 	mux := http.NewServeMux()
-	mux.Handle("/healthz", httptransport.NewHealthHandler("feed-service"))
+	mux.Handle("/healthz", httptransport.NewHealthHandler(serviceName))
+	mux.Handle("/metrics", observability.NewPrometheusHandler(serviceName, metrics))
 	mux.Handle("/api/v1/feed", httptransport.NewFeedHandler(feed))
-	return mux
+	return observability.InstrumentHTTPRequests(metrics, mux)
 }
 
 func consumeScored(ctx context.Context, consumer *articleflowkafka.ReaderConsumer, handler *kafkatransport.ScoredHandler, maxMessages int) error {

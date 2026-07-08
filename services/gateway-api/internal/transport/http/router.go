@@ -29,7 +29,7 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 	mux.Handle("/api/v1/search/jobs", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/search/jobs/", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/reactions", NewReactionHandler(dependencies.ReactionRecorder))
-	return withCORS(mux)
+	return withCORS(observability.InstrumentHTTPRequests(metrics, mux))
 }
 
 func withCORS(next http.Handler) http.Handler {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
+	"github.com/hanq/articleflow/packages/observability"
 	"github.com/hanq/articleflow/services/article-service/internal/config"
 	"github.com/hanq/articleflow/services/article-service/internal/runtime"
 	httptransport "github.com/hanq/articleflow/services/article-service/internal/transport/http"
@@ -101,9 +102,12 @@ type articleHTTPStore interface {
 }
 
 func newHTTPHandler(serviceName string, reader articleHTTPStore) http.Handler {
+	metrics := observability.NewMetricsRegistry()
+	metrics.Inc("articleflow_service_info")
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler(serviceName))
+	mux.Handle("/metrics", observability.NewPrometheusHandler(serviceName, metrics))
 	mux.Handle("/api/v1/articles", httptransport.NewArticleHandler(reader))
 	mux.Handle("/api/v1/articles/search", httptransport.NewArticleSearchHandler(reader))
-	return mux
+	return observability.InstrumentHTTPRequests(metrics, mux)
 }
