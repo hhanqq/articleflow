@@ -121,11 +121,86 @@ type rssItem struct {
 }
 
 func parseRSS(reader io.Reader) ([]rssItem, error) {
-	var document rssDocument
-	if err := xml.NewDecoder(reader).Decode(&document); err != nil {
+	payload, err := io.ReadAll(reader)
+	if err != nil {
 		return nil, err
 	}
-	return document.Channel.Items, nil
+	var document rssDocument
+	if err := xml.Unmarshal(payload, &document); err != nil {
+		return nil, err
+	}
+	if len(document.Channel.Items) > 0 {
+		return document.Channel.Items, nil
+	}
+
+	var atom atomDocument
+	if err := xml.Unmarshal(payload, &atom); err != nil {
+		return nil, err
+	}
+	items := make([]rssItem, 0, len(atom.Entries))
+	for _, entry := range atom.Entries {
+		items = append(items, rssItem{
+			Title:       entry.Title,
+			Link:        entry.LinkURL(),
+			GUID:        entry.ID,
+			Description: firstNonEmpty(entry.Summary, entry.Content),
+			Author:      entry.Author.Name,
+			Categories:  entry.Categories(),
+			PubDate:     firstNonEmpty(entry.Published, entry.Updated),
+		})
+	}
+	return items, nil
+}
+
+type atomDocument struct {
+	Entries []atomEntry `xml:"entry"`
+}
+
+type atomEntry struct {
+	Title     string         `xml:"title"`
+	ID        string         `xml:"id"`
+	Summary   string         `xml:"summary"`
+	Content   string         `xml:"content"`
+	Updated   string         `xml:"updated"`
+	Published string         `xml:"published"`
+	Author    atomAuthor     `xml:"author"`
+	Links     []atomLink     `xml:"link"`
+	Tags      []atomCategory `xml:"category"`
+}
+
+type atomAuthor struct {
+	Name string `xml:"name"`
+}
+
+type atomLink struct {
+	Href string `xml:"href,attr"`
+	Rel  string `xml:"rel,attr"`
+}
+
+type atomCategory struct {
+	Term string `xml:"term,attr"`
+}
+
+func (entry atomEntry) LinkURL() string {
+	for _, link := range entry.Links {
+		if strings.TrimSpace(link.Rel) == "" || link.Rel == "alternate" {
+			return strings.TrimSpace(link.Href)
+		}
+	}
+	if len(entry.Links) > 0 {
+		return strings.TrimSpace(entry.Links[0].Href)
+	}
+	return ""
+}
+
+func (entry atomEntry) Categories() []string {
+	categories := make([]string, 0, len(entry.Tags))
+	for _, tag := range entry.Tags {
+		if strings.TrimSpace(tag.Term) != "" {
+			categories = append(categories, strings.TrimSpace(tag.Term))
+		}
+	}
+	return categories
 }
 
 func matchesTerms(item rssItem, terms []string) bool {
@@ -170,7 +245,7 @@ var rssStopWords = map[string]struct{}{
 
 func parsePublishedAt(value string) time.Time {
 	value = strings.TrimSpace(value)
-	for _, layout := range []string{time.RFC1123Z, time.RFC1123} {
+	for _, layout := range []string{time.RFC3339, time.RFC3339Nano, time.RFC1123Z, time.RFC1123} {
 		parsed, err := time.Parse(layout, value)
 		if err == nil {
 			return parsed

@@ -54,7 +54,11 @@ func BuildRegistry(cfg config.Config) Registry {
 		}))
 	}
 	for _, source := range cfg.RSSSourceList() {
-		add(SourceInfo{Name: source.Name, DisplayName: source.Name, Kind: "rss"}, rssfeed.NewClient(rssfeed.ClientOptions{
+		displayName := source.DisplayName
+		if displayName == "" {
+			displayName = source.Name
+		}
+		add(SourceInfo{Name: source.Name, DisplayName: displayName, Kind: "rss"}, rssfeed.NewClient(rssfeed.ClientOptions{
 			SourceName: source.Name,
 			FeedURL:    source.URL,
 			Language:   "ru",

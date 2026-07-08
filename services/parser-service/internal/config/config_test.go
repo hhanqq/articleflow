@@ -54,17 +54,24 @@ func TestBrokerListSplitsCommaSeparatedBrokers(t *testing.T) {
 }
 
 func TestRSSSourceListParsesConfiguredSources(t *testing.T) {
-	cfg := Config{CustomRSSSources: "dzen=https://dzen.ru/rss, yandex=https://news.yandex.ru/index.rss , broken"}
+	cfg := Config{
+		DzenRSSFeedURL:   "https://dzen.example/rss",
+		YandexRSSFeedURL: "https://yandex.example/rss",
+		CustomRSSSources: "custom=https://custom.example/rss, broken",
+	}
 
 	sources := cfg.RSSSourceList()
 
-	if len(sources) != 2 {
-		t.Fatalf("expected 2 rss sources, got %d", len(sources))
+	if len(sources) != 3 {
+		t.Fatalf("expected 3 rss sources, got %d", len(sources))
 	}
-	if sources[0].Name != "dzen" || sources[0].URL != "https://dzen.ru/rss" {
+	if sources[0].Name != "dzen" || sources[0].DisplayName != "Dzen" || sources[0].URL != "https://dzen.example/rss" {
 		t.Fatalf("unexpected first source: %#v", sources[0])
 	}
-	if sources[1].Name != "yandex" || sources[1].URL != "https://news.yandex.ru/index.rss" {
+	if sources[1].Name != "yandex" || sources[1].DisplayName != "Yandex" || sources[1].URL != "https://yandex.example/rss" {
 		t.Fatalf("unexpected second source: %#v", sources[1])
+	}
+	if sources[2].Name != "custom" || sources[2].DisplayName != "custom" || sources[2].URL != "https://custom.example/rss" {
+		t.Fatalf("unexpected custom source: %#v", sources[2])
 	}
 }

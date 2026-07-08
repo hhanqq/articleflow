@@ -7,7 +7,8 @@ Current sources:
 - `habr`: Habr RSS search plus full article HTML parsing
 - `vc`: full-site vc.ru search through the public discovery API used by `https://vc.ru/discovery?q=...`, then public article HTML parsing through `window.__INITIAL_STATE__`, JSON-LD, and meta tags; falls back to RSS when discovery is empty or temporarily unavailable
 - `vc_rss`: generic RSS parser pointed at `https://vc.ru/rss`
-- custom RSS sources from `CUSTOM_RSS_SOURCES`, for example `dzen=https://dzen.ru/rss,yandex=https://news.yandex.ru/index.rss`
+- optional Dzen/Yandex RSS or Atom feeds via `DZEN_RSS_FEED_URL` and `YANDEX_RSS_FEED_URL`
+- custom RSS/Atom sources from `CUSTOM_RSS_SOURCES`, for example `my_blog=https://example.com/feed.xml`
 
 Run:
 
@@ -23,7 +24,10 @@ Useful env:
 - `VC_SEARCH_PROVIDER` defaults to `discovery`; it can also be `google`, `google_cse`, or `bing`
 - `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_CX` enable Google Programmable Search for `vc`
 - `BING_SEARCH_API_KEY` enables Bing Web Search for `vc`
+- `DZEN_RSS_FEED_URL` adds a `dzen` source when a concrete Dzen feed URL is known
+- `YANDEX_RSS_FEED_URL` adds a `yandex` source when a concrete Yandex feed URL is known
 - `CUSTOM_RSS_SOURCES` is a comma-separated source registry in `name=url` format
+- `PARSER_DISABLED_SOURCES` disables registered sources by name, for example `vc_rss,dzen`
 - `KAFKA_BROKERS` defaults to `127.0.0.1:9092`
 
 For `vc` discovery search, the first vc.ru API page is usually 12 items. Use parser job `limit` to fetch more pages; `SearchQuery` caps it at 100 per job.

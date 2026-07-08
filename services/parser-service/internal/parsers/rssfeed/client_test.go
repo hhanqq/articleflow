@@ -102,3 +102,48 @@ func TestClientSearchIgnoresStopWordsWhenFiltering(t *testing.T) {
 		t.Fatalf("unexpected candidate: %s", candidates[0].ExternalID)
 	}
 }
+
+func TestClientSearchParsesAtomFeeds(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/atom+xml")
+		_, _ = response.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <title>Путешествие в Японию для предпринимателей</title>
+    <link href="https://example.com/japan"/>
+    <id>atom-japan-1</id>
+    <summary>Маршрут, расходы и деловые встречи.</summary>
+    <author><name>Редакция</name></author>
+    <category term="travel"/>
+    <updated>2026-07-08T08:32:12Z</updated>
+  </entry>
+</feed>`))
+	}))
+	defer server.Close()
+	client := NewClient(ClientOptions{
+		SourceName: "atom_source",
+		FeedURL:    server.URL,
+		HTTPClient: server.Client(),
+	})
+
+	candidates, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "японию", Limit: 10})
+
+	if err != nil {
+		t.Fatalf("search atom failed: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 atom candidate, got %d", len(candidates))
+	}
+	if candidates[0].ExternalID != "atom-japan-1" {
+		t.Fatalf("unexpected external id: %s", candidates[0].ExternalID)
+	}
+	if candidates[0].URL != "https://example.com/japan" {
+		t.Fatalf("unexpected url: %s", candidates[0].URL)
+	}
+	if candidates[0].Author != "Редакция" {
+		t.Fatalf("unexpected author: %s", candidates[0].Author)
+	}
+	if candidates[0].PublishedAt.IsZero() {
+		t.Fatal("expected atom updated time")
+	}
+}

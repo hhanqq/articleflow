@@ -22,6 +22,8 @@ type Config struct {
 	GoogleSearchAPIKey string
 	GoogleSearchCX     string
 	BingSearchAPIKey   string
+	DzenRSSFeedURL     string
+	YandexRSSFeedURL   string
 	CustomRSSSources   string
 	DisabledSources    string
 }
@@ -43,14 +45,17 @@ func Load() Config {
 		GoogleSearchAPIKey: sharedconfig.String("GOOGLE_SEARCH_API_KEY", ""),
 		GoogleSearchCX:     sharedconfig.String("GOOGLE_SEARCH_CX", ""),
 		BingSearchAPIKey:   sharedconfig.String("BING_SEARCH_API_KEY", ""),
+		DzenRSSFeedURL:     sharedconfig.String("DZEN_RSS_FEED_URL", ""),
+		YandexRSSFeedURL:   sharedconfig.String("YANDEX_RSS_FEED_URL", ""),
 		CustomRSSSources:   sharedconfig.String("CUSTOM_RSS_SOURCES", ""),
 		DisabledSources:    sharedconfig.String("PARSER_DISABLED_SOURCES", ""),
 	}
 }
 
 type RSSSource struct {
-	Name string
-	URL  string
+	Name        string
+	DisplayName string
+	URL         string
 }
 
 func (cfg Config) BrokerList() []string {
@@ -66,8 +71,14 @@ func (cfg Config) BrokerList() []string {
 }
 
 func (cfg Config) RSSSourceList() []RSSSource {
+	sources := make([]RSSSource, 0)
+	if strings.TrimSpace(cfg.DzenRSSFeedURL) != "" {
+		sources = append(sources, RSSSource{Name: "dzen", DisplayName: "Dzen", URL: strings.TrimSpace(cfg.DzenRSSFeedURL)})
+	}
+	if strings.TrimSpace(cfg.YandexRSSFeedURL) != "" {
+		sources = append(sources, RSSSource{Name: "yandex", DisplayName: "Yandex", URL: strings.TrimSpace(cfg.YandexRSSFeedURL)})
+	}
 	parts := strings.Split(cfg.CustomRSSSources, ",")
-	sources := make([]RSSSource, 0, len(parts))
 	for _, part := range parts {
 		name, sourceURL, ok := strings.Cut(part, "=")
 		if !ok {
@@ -78,7 +89,7 @@ func (cfg Config) RSSSourceList() []RSSSource {
 		if name == "" || sourceURL == "" {
 			continue
 		}
-		sources = append(sources, RSSSource{Name: name, URL: sourceURL})
+		sources = append(sources, RSSSource{Name: name, DisplayName: name, URL: sourceURL})
 	}
 	return sources
 }
