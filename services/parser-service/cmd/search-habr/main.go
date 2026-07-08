@@ -33,7 +33,7 @@ func main() {
 		Waiter:      habr.FixedDelayWaiter{Delay: time.Duration(cfg.HabrRequestDelayMS) * time.Millisecond},
 	})
 	usecase := search.NewUsecase(producer, []search.Parser{client})
-	candidates, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+	result, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
 		Text:    *queryText,
 		Sources: []string{habr.SourceName},
 		Limit:   *limit,
@@ -41,5 +41,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("published %d Habr article(s) for query %q", len(candidates), *queryText)
+	log.Printf("published %d Habr article(s) for query %q", len(result.Candidates), *queryText)
 }

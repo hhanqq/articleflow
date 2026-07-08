@@ -59,6 +59,37 @@ export function buildSearchJobPayload({ query, sources, limit }) {
   };
 }
 
+export function buildSelectedSources({ allSelected, selected }) {
+  if (allSelected) {
+    return [];
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const source of Array.isArray(selected) ? selected : []) {
+    const normalized = String(source ?? "").trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    unique.push(normalized);
+  }
+  return unique;
+}
+
+export function normalizeSourceStats(raw = {}) {
+  return {
+    sourceName: String(raw.SourceName ?? raw.source_name ?? ""),
+    status: String(raw.Status ?? raw.status ?? ""),
+    foundCount: Number(raw.FoundCount ?? raw.found_count ?? 0),
+    acceptedCount: Number(raw.AcceptedCount ?? raw.accepted_count ?? 0),
+    returnedCount: Number(raw.ReturnedCount ?? raw.returned_count ?? 0),
+    publishedCount: Number(raw.PublishedCount ?? raw.published_count ?? 0),
+    filteredCount: Number(raw.FilteredCount ?? raw.filtered_count ?? 0),
+    error: String(raw.Error ?? raw.error ?? ""),
+    durationMS: Number(raw.DurationMS ?? raw.duration_ms ?? 0),
+  };
+}
+
 export function buildReactionPayload({ userID, articleID, type }) {
   const normalizedUserID = String(userID ?? "").trim();
   const normalizedArticleID = String(articleID ?? "").trim();

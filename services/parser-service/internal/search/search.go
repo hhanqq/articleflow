@@ -5,7 +5,10 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"net/url"
+	"sort"
 	"strings"
+	"time"
+	"unicode"
 
 	eventsv1 "github.com/hanq/articleflow/contracts/events/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
@@ -37,50 +40,91 @@ func NewUsecase(producer articleflowkafka.Producer, parsers []Parser) *Usecase {
 	return &Usecase{producer: producer, parsers: bySource, sourceOrder: sourceOrder}
 }
 
-func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
+func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.SearchQuery) (parserv1.SearchResult, error) {
 	query = query.Normalize()
 	if err := query.Validate(); err != nil {
-		return nil, err
+		return parserv1.SearchResult{}, err
 	}
 
 	var buckets []sourceCandidateBucket
+	var stats []parserv1.SourceStats
 	seenCandidates := make(map[string]bool)
 	var lastErr error
 	for _, source := range usecase.selectedSources(query) {
+		startedAt := time.Now()
 		parser := usecase.parsers[source]
 		candidates, err := parser.Search(ctx, query)
+		sourceStats := parserv1.SourceStats{
+			SourceName: source,
+			Status:     parserv1.SourceStatusOK,
+			DurationMS: time.Since(startedAt).Milliseconds(),
+		}
 		if err != nil {
+			sourceStats.Status = parserv1.SourceStatusFailed
+			sourceStats.Error = err.Error()
+			stats = append(stats, sourceStats)
 			if publishErr := usecase.publishFailure(ctx, source, query, err); publishErr != nil {
-				return nil, publishErr
+				return parserv1.SearchResult{SourceStats: stats}, publishErr
 			}
 			lastErr = err
 			continue
 		}
+		sourceStats.FoundCount = len(candidates)
 		bucket := sourceCandidateBucket{source: source}
+		var zeroScoreCandidates []scoredCandidate
 		for _, candidate := range candidates {
 			candidate = normalizeCandidate(candidate, source, query)
 			if candidate.URL == "" || candidate.Title == "" {
+				sourceStats.FilteredCount++
 				continue
 			}
 			key := candidateDedupKey(candidate)
 			if seenCandidates[key] {
+				sourceStats.FilteredCount++
 				continue
 			}
 			seenCandidates[key] = true
-			if err := usecase.publishCandidate(ctx, candidate); err != nil {
-				return nil, err
+			score := candidateRelevanceScore(candidate, query.Text)
+			if score <= 0 {
+				zeroScoreCandidates = append(zeroScoreCandidates, scoredCandidate{candidate: candidate, score: score})
+				continue
 			}
-			bucket.candidates = append(bucket.candidates, candidate)
+			bucket.scoredCandidates = append(bucket.scoredCandidates, scoredCandidate{candidate: candidate, score: score})
 		}
-		if len(bucket.candidates) > 0 {
+		if len(bucket.scoredCandidates) == 0 && len(zeroScoreCandidates) > 0 {
+			bucket.scoredCandidates = append(bucket.scoredCandidates, zeroScoreCandidates...)
+		} else {
+			sourceStats.FilteredCount += len(zeroScoreCandidates)
+		}
+		sortScoredCandidates(bucket.scoredCandidates)
+		sourceStats.AcceptedCount = len(bucket.scoredCandidates)
+		if sourceStats.FoundCount == 0 || sourceStats.AcceptedCount == 0 {
+			sourceStats.Status = parserv1.SourceStatusEmpty
+		}
+		if len(bucket.scoredCandidates) > 0 {
 			buckets = append(buckets, bucket)
 		}
+		stats = append(stats, sourceStats)
 	}
 	allCandidates := interleaveCandidateBuckets(buckets, query.Limit)
-	if len(allCandidates) == 0 && lastErr != nil {
-		return nil, lastErr
+	returnedBySource := countCandidatesBySource(allCandidates)
+	for index := range stats {
+		stats[index].ReturnedCount = returnedBySource[stats[index].SourceName]
 	}
-	return allCandidates, nil
+	result := parserv1.SearchResult{Candidates: allCandidates, SourceStats: stats}
+	if len(allCandidates) == 0 && lastErr != nil {
+		return result, lastErr
+	}
+	for _, candidate := range allCandidates {
+		if err := usecase.publishCandidate(ctx, candidate); err != nil {
+			return result, err
+		}
+	}
+	publishedBySource := countCandidatesBySource(allCandidates)
+	for index := range result.SourceStats {
+		result.SourceStats[index].PublishedCount = publishedBySource[result.SourceStats[index].SourceName]
+	}
+	return result, nil
 }
 
 func (usecase *Usecase) publishCandidate(ctx context.Context, candidate parserv1.ArticleCandidate) error {
@@ -146,8 +190,13 @@ func (usecase *Usecase) selectedSources(query parserv1.SearchQuery) []string {
 }
 
 type sourceCandidateBucket struct {
-	source     string
-	candidates []parserv1.ArticleCandidate
+	source           string
+	scoredCandidates []scoredCandidate
+}
+
+type scoredCandidate struct {
+	candidate parserv1.ArticleCandidate
+	score     int
 }
 
 func interleaveCandidateBuckets(buckets []sourceCandidateBucket, limit int) []parserv1.ArticleCandidate {
@@ -158,10 +207,10 @@ func interleaveCandidateBuckets(buckets []sourceCandidateBucket, limit int) []pa
 	for index := 0; len(result) < limit; index++ {
 		added := false
 		for _, bucket := range buckets {
-			if index >= len(bucket.candidates) {
+			if index >= len(bucket.scoredCandidates) {
 				continue
 			}
-			result = append(result, bucket.candidates[index])
+			result = append(result, bucket.scoredCandidates[index].candidate)
 			added = true
 			if len(result) >= limit {
 				break
@@ -172,6 +221,72 @@ func interleaveCandidateBuckets(buckets []sourceCandidateBucket, limit int) []pa
 		}
 	}
 	return result
+}
+
+func sortScoredCandidates(candidates []scoredCandidate) {
+	sort.SliceStable(candidates, func(left, right int) bool {
+		if candidates[left].score != candidates[right].score {
+			return candidates[left].score > candidates[right].score
+		}
+		return candidates[left].candidate.PublishedAt.After(candidates[right].candidate.PublishedAt)
+	})
+}
+
+func countCandidatesBySource(candidates []parserv1.ArticleCandidate) map[string]int {
+	counts := make(map[string]int)
+	for _, candidate := range candidates {
+		counts[candidate.SourceName]++
+	}
+	return counts
+}
+
+func candidateRelevanceScore(candidate parserv1.ArticleCandidate, queryText string) int {
+	terms := queryTerms(queryText)
+	if len(terms) == 0 {
+		return 1
+	}
+	title := strings.ToLower(candidate.Title)
+	summary := strings.ToLower(candidate.Summary)
+	content := strings.ToLower(candidate.Content)
+	urlText := strings.ToLower(candidate.URL)
+	tagText := strings.ToLower(strings.Join(candidate.Tags, " "))
+
+	score := 0
+	for _, term := range terms {
+		if strings.Contains(title, term) {
+			score += 4
+		}
+		if strings.Contains(tagText, term) {
+			score += 3
+		}
+		if strings.Contains(summary, term) {
+			score += 2
+		}
+		if strings.Contains(content, term) {
+			score += 1
+		}
+		if strings.Contains(urlText, term) {
+			score += 1
+		}
+	}
+	return score
+}
+
+func queryTerms(queryText string) []string {
+	rawTerms := strings.FieldsFunc(strings.ToLower(queryText), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	terms := make([]string, 0, len(rawTerms))
+	seen := make(map[string]bool, len(rawTerms))
+	for _, term := range rawTerms {
+		term = strings.TrimSpace(term)
+		if len([]rune(term)) < 2 || seen[term] {
+			continue
+		}
+		seen[term] = true
+		terms = append(terms, term)
+	}
+	return terms
 }
 
 func normalizeCandidate(candidate parserv1.ArticleCandidate, source string, query parserv1.SearchQuery) parserv1.ArticleCandidate {

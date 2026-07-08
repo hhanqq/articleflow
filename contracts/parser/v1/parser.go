@@ -13,6 +13,12 @@ const (
 	ParserJobStatusFailed    = "failed"
 )
 
+const (
+	SourceStatusOK     = "ok"
+	SourceStatusEmpty  = "empty"
+	SourceStatusFailed = "failed"
+)
+
 type SearchQuery struct {
 	Text     string
 	Sources  []string
@@ -62,6 +68,23 @@ type ArticleCandidate struct {
 	PublishedAt time.Time
 }
 
+type SourceStats struct {
+	SourceName     string
+	Status         string
+	FoundCount     int
+	AcceptedCount  int
+	ReturnedCount  int
+	PublishedCount int
+	FilteredCount  int
+	Error          string
+	DurationMS     int64
+}
+
+type SearchResult struct {
+	Candidates  []ArticleCandidate
+	SourceStats []SourceStats
+}
+
 type ParserJob struct {
 	ID              string
 	Query           SearchQuery
@@ -69,6 +92,7 @@ type ParserJob struct {
 	Error           string
 	CandidatesCount int
 	Candidates      []ArticleCandidate
+	SourceStats     []SourceStats
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }

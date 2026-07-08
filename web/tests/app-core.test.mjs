@@ -4,12 +4,14 @@ import assert from "node:assert/strict";
 import {
   buildReactionPayload,
   buildSearchJobPayload,
+  buildSelectedSources,
   formatScore,
   normalizeArticle,
   normalizeCandidateItem,
   normalizeJobResponse,
   normalizeFeedItem,
   normalizeSearchResponse,
+  normalizeSourceStats,
   shouldPollJob,
 } from "../src/app-core.mjs";
 
@@ -82,6 +84,42 @@ test("buildSearchJobPayload trims query and keeps selected sources", () => {
     query: "go kafka",
     sources: ["habr"],
     limit: 5,
+  });
+});
+
+test("buildSelectedSources uses empty list for all sources", () => {
+  assert.deepEqual(buildSelectedSources({ allSelected: true, selected: ["habr", "vc"] }), []);
+});
+
+test("buildSelectedSources keeps explicit unique source list", () => {
+  assert.deepEqual(
+    buildSelectedSources({ allSelected: false, selected: ["habr", "vc", "habr", ""] }),
+    ["habr", "vc"],
+  );
+});
+
+test("normalizeSourceStats accepts Go JSON field names", () => {
+  const stat = normalizeSourceStats({
+    SourceName: "vc",
+    Status: "ok",
+    FoundCount: 12,
+    AcceptedCount: 8,
+    ReturnedCount: 4,
+    PublishedCount: 4,
+    FilteredCount: 4,
+    DurationMS: 123,
+  });
+
+  assert.deepEqual(stat, {
+    sourceName: "vc",
+    status: "ok",
+    foundCount: 12,
+    acceptedCount: 8,
+    returnedCount: 4,
+    publishedCount: 4,
+    filteredCount: 4,
+    error: "",
+    durationMS: 123,
   });
 });
 

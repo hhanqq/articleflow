@@ -67,6 +67,9 @@ func TestParserJobCarriesExecutionResult(t *testing.T) {
 		Candidates: []ArticleCandidate{
 			{SourceName: "habr", ExternalID: "1", Title: "First"},
 		},
+		SourceStats: []SourceStats{
+			{SourceName: "habr", Status: SourceStatusOK, FoundCount: 3, AcceptedCount: 2, ReturnedCount: 1},
+		},
 		Error: "",
 	}
 
@@ -75,5 +78,27 @@ func TestParserJobCarriesExecutionResult(t *testing.T) {
 	}
 	if len(job.Candidates) != 1 {
 		t.Fatalf("expected job candidates to be carried, got %d", len(job.Candidates))
+	}
+	if len(job.SourceStats) != 1 {
+		t.Fatalf("expected source stats to be carried, got %d", len(job.SourceStats))
+	}
+	if job.SourceStats[0].AcceptedCount != 2 {
+		t.Fatalf("unexpected accepted count: %d", job.SourceStats[0].AcceptedCount)
+	}
+}
+
+func TestSearchResultCarriesCandidatesAndSourceStats(t *testing.T) {
+	result := SearchResult{
+		Candidates: []ArticleCandidate{{SourceName: "vc", Title: "VC"}},
+		SourceStats: []SourceStats{
+			{SourceName: "vc", Status: SourceStatusOK, FoundCount: 12, AcceptedCount: 8, ReturnedCount: 4},
+		},
+	}
+
+	if len(result.Candidates) != 1 {
+		t.Fatalf("expected candidate, got %d", len(result.Candidates))
+	}
+	if result.SourceStats[0].SourceName != "vc" {
+		t.Fatalf("unexpected source: %s", result.SourceStats[0].SourceName)
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 type SearchPublisher interface {
-	SearchAndPublish(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error)
+	SearchAndPublish(ctx context.Context, query parserv1.SearchQuery) (parserv1.SearchResult, error)
 }
 
 type Manager struct {
@@ -64,8 +64,9 @@ func (manager *Manager) Run(ctx context.Context, id string) (parserv1.ParserJob,
 	job.UpdatedAt = time.Now().UTC()
 	manager.store.Save(job)
 
-	candidates, err := manager.publisher.SearchAndPublish(ctx, job.Query)
+	result, err := manager.publisher.SearchAndPublish(ctx, job.Query)
 	job.UpdatedAt = time.Now().UTC()
+	job.SourceStats = append([]parserv1.SourceStats(nil), result.SourceStats...)
 	if err != nil {
 		job.Status = parserv1.ParserJobStatusFailed
 		job.Error = err.Error()
@@ -73,8 +74,8 @@ func (manager *Manager) Run(ctx context.Context, id string) (parserv1.ParserJob,
 		return job, err
 	}
 	job.Status = parserv1.ParserJobStatusCompleted
-	job.CandidatesCount = len(candidates)
-	job.Candidates = append([]parserv1.ArticleCandidate(nil), candidates...)
+	job.CandidatesCount = len(result.Candidates)
+	job.Candidates = append([]parserv1.ArticleCandidate(nil), result.Candidates...)
 	job.Error = ""
 	return manager.store.Save(job), nil
 }

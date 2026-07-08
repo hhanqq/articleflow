@@ -9,23 +9,29 @@ import (
 )
 
 type fakeSearchPublisher struct {
-	candidates []parserv1.ArticleCandidate
-	err        error
+	result parserv1.SearchResult
+	err    error
 }
 
-func (publisher fakeSearchPublisher) SearchAndPublish(_ context.Context, _ parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
+func (publisher fakeSearchPublisher) SearchAndPublish(_ context.Context, _ parserv1.SearchQuery) (parserv1.SearchResult, error) {
 	if publisher.err != nil {
-		return nil, publisher.err
+		return publisher.result, publisher.err
 	}
-	return publisher.candidates, nil
+	return publisher.result, nil
 }
 
 func TestRunSearchJobCompletesAndStoresCandidates(t *testing.T) {
 	store := NewMemoryStore()
 	manager := NewManager(store, fakeSearchPublisher{
-		candidates: []parserv1.ArticleCandidate{
-			{SourceName: "habr", ExternalID: "1", Title: "First"},
-			{SourceName: "vc", ExternalID: "2", Title: "Second"},
+		result: parserv1.SearchResult{
+			Candidates: []parserv1.ArticleCandidate{
+				{SourceName: "habr", ExternalID: "1", Title: "First"},
+				{SourceName: "vc", ExternalID: "2", Title: "Second"},
+			},
+			SourceStats: []parserv1.SourceStats{
+				{SourceName: "habr", Status: parserv1.SourceStatusOK, FoundCount: 3, AcceptedCount: 2, ReturnedCount: 1},
+				{SourceName: "vc", Status: parserv1.SourceStatusOK, FoundCount: 2, AcceptedCount: 2, ReturnedCount: 1},
+			},
 		},
 	})
 
@@ -47,6 +53,9 @@ func TestRunSearchJobCompletesAndStoresCandidates(t *testing.T) {
 	if len(completed.Candidates) != 2 {
 		t.Fatalf("expected 2 stored candidates, got %d", len(completed.Candidates))
 	}
+	if len(completed.SourceStats) != 2 {
+		t.Fatalf("expected stored source stats, got %d", len(completed.SourceStats))
+	}
 	if completed.Candidates[0].Title != "First" {
 		t.Fatalf("unexpected first candidate: %s", completed.Candidates[0].Title)
 	}
@@ -60,11 +69,21 @@ func TestRunSearchJobCompletesAndStoresCandidates(t *testing.T) {
 	if len(stored.Candidates) != 2 {
 		t.Fatalf("expected stored candidates, got %d", len(stored.Candidates))
 	}
+	if len(stored.SourceStats) != 2 {
+		t.Fatalf("expected stored source stats, got %d", len(stored.SourceStats))
+	}
 }
 
 func TestRunSearchJobStoresFailure(t *testing.T) {
 	store := NewMemoryStore()
-	manager := NewManager(store, fakeSearchPublisher{err: errors.New("habr unavailable")})
+	manager := NewManager(store, fakeSearchPublisher{
+		result: parserv1.SearchResult{
+			SourceStats: []parserv1.SourceStats{
+				{SourceName: "habr", Status: parserv1.SourceStatusFailed, Error: "habr unavailable"},
+			},
+		},
+		err: errors.New("habr unavailable"),
+	})
 	job, err := manager.Start(context.Background(), parserv1.SearchQuery{Text: "go kafka", Limit: 10})
 	if err != nil {
 		t.Fatalf("start job: %v", err)
@@ -80,6 +99,12 @@ func TestRunSearchJobStoresFailure(t *testing.T) {
 	}
 	if failed.Error != "habr unavailable" {
 		t.Fatalf("unexpected error: %s", failed.Error)
+	}
+	if len(failed.SourceStats) != 1 {
+		t.Fatalf("expected failed source stats, got %d", len(failed.SourceStats))
+	}
+	if failed.SourceStats[0].Status != parserv1.SourceStatusFailed {
+		t.Fatalf("unexpected source status: %s", failed.SourceStats[0].Status)
 	}
 }
 

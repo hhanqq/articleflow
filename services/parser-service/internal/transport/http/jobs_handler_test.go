@@ -63,6 +63,9 @@ func TestJobsHandlerReturnsParserJobStatus(t *testing.T) {
 			Candidates: []parserv1.ArticleCandidate{
 				{SourceName: "habr", ExternalID: "1", Title: "Go Kafka"},
 			},
+			SourceStats: []parserv1.SourceStats{
+				{SourceName: "habr", Status: parserv1.SourceStatusOK, FoundCount: 2, AcceptedCount: 1, ReturnedCount: 1},
+			},
 		},
 	})
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/parser/jobs/parser-job-1", nil)
@@ -82,5 +85,8 @@ func TestJobsHandlerReturnsParserJobStatus(t *testing.T) {
 	}
 	if len(payload.Job.Candidates) != 1 {
 		t.Fatalf("expected candidates in response, got %d", len(payload.Job.Candidates))
+	}
+	if len(payload.Job.SourceStats) != 1 {
+		t.Fatalf("expected source stats in response, got %d", len(payload.Job.SourceStats))
 	}
 }

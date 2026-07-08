@@ -1,6 +1,7 @@
 import {
   buildReactionPayload,
   buildSearchJobPayload,
+  buildSelectedSources,
   formatDate,
   formatScore,
   normalizeArticle,
@@ -8,6 +9,7 @@ import {
   normalizeJobResponse,
   normalizeFeedItem,
   normalizeSearchResponse,
+  normalizeSourceStats,
   shouldPollJob,
 } from "./app-core.mjs";
 
@@ -37,6 +39,9 @@ const elements = {
   searchLimit: document.querySelector("#searchLimit"),
   jobStatus: document.querySelector("#jobStatus"),
   jobMeta: document.querySelector("#jobMeta"),
+  sourceAll: document.querySelector("#sourceAll"),
+  sourceOptions: [...document.querySelectorAll("[data-source-option]")],
+  sourceStats: document.querySelector("#sourceStats"),
   lastError: document.querySelector("#lastError"),
   articleDetail: document.querySelector("#articleDetail"),
 };
@@ -68,6 +73,19 @@ elements.searchForm.addEventListener("submit", (event) => {
 elements.runParserJob.addEventListener("click", () => {
   void startSearchJob();
 });
+
+elements.sourceAll.addEventListener("change", () => {
+  syncSourceControls();
+});
+
+for (const option of elements.sourceOptions) {
+  option.addEventListener("change", () => {
+    if (option.checked) {
+      elements.sourceAll.checked = false;
+    }
+    syncSourceControls();
+  });
+}
 
 elements.feed.addEventListener("click", (event) => {
   const detailButton = event.target.closest("[data-open-detail]");
@@ -117,7 +135,7 @@ async function startSearchJob() {
   try {
     const searchPayload = buildSearchJobPayload({
       query: elements.searchQuery.value,
-      sources: [],
+      sources: selectedSources(),
       limit: elements.searchLimit.value,
     });
     const jobPayload = await requestJSON("/api/v1/search/jobs", {
@@ -140,7 +158,7 @@ async function searchStoredArticles() {
   try {
     const searchPayload = buildSearchJobPayload({
       query: elements.searchQuery.value,
-      sources: [],
+      sources: selectedSources(),
       limit: elements.searchLimit.value,
     });
     const payload = await requestJSON("/api/v1/search", {
@@ -343,6 +361,55 @@ function renderJob(job) {
   elements.jobStatus.textContent = status;
   elements.jobStatus.dataset.status = String(status).toLowerCase();
   elements.jobMeta.textContent = id ? `job ${id} | candidates ${count}` : "нет активной задачи";
+  renderSourceStats(job.SourceStats ?? job.source_stats ?? []);
+}
+
+function renderSourceStats(rawStats) {
+  const stats = Array.isArray(rawStats) ? rawStats.map(normalizeSourceStats) : [];
+  if (stats.length === 0) {
+    elements.sourceStats.innerHTML = `<p class="source-stats__empty">нет статистики источников</p>`;
+    return;
+  }
+  elements.sourceStats.innerHTML = stats
+    .map((stat) => {
+      const error = stat.error ? `<span class="source-stats__error">${escapeHTML(stat.error)}</span>` : "";
+      return `
+        <div class="source-stat" data-status="${escapeHTML(stat.status || "unknown")}">
+          <div>
+            <strong>${escapeHTML(stat.sourceName || "source")}</strong>
+            <span>${escapeHTML(stat.status || "unknown")} · ${stat.durationMS} ms</span>
+          </div>
+          <dl>
+            <dt>found</dt><dd>${stat.foundCount}</dd>
+            <dt>accepted</dt><dd>${stat.acceptedCount}</dd>
+            <dt>returned</dt><dd>${stat.returnedCount}</dd>
+            <dt>filtered</dt><dd>${stat.filteredCount}</dd>
+          </dl>
+          ${error}
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function selectedSources() {
+  return buildSelectedSources({
+    allSelected: elements.sourceAll.checked,
+    selected: elements.sourceOptions.filter((option) => option.checked).map((option) => option.value),
+  });
+}
+
+function syncSourceControls() {
+  if (elements.sourceAll.checked) {
+    for (const option of elements.sourceOptions) {
+      option.checked = false;
+    }
+    return;
+  }
+  const hasSelectedSource = elements.sourceOptions.some((option) => option.checked);
+  if (!hasSelectedSource) {
+    elements.sourceAll.checked = true;
+  }
 }
 
 function markReaction(articleID, type) {

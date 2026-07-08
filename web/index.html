@@ -47,8 +47,26 @@
           </label>
           <div class="source-line">
             <span>Источники</span>
-            <strong>Habr, vc.ru</strong>
+            <strong>контроль выдачи</strong>
           </div>
+          <fieldset class="source-controls">
+            <label>
+              <input id="sourceAll" type="checkbox" checked />
+              Все
+            </label>
+            <label>
+              <input type="checkbox" value="habr" data-source-option />
+              Habr
+            </label>
+            <label>
+              <input type="checkbox" value="vc" data-source-option />
+              vc.ru
+            </label>
+            <label>
+              <input type="checkbox" value="vc_rss" data-source-option />
+              vc RSS
+            </label>
+          </fieldset>
           <div class="form-actions">
             <button id="searchStored" type="submit">Искать в базе</button>
             <button id="runParserJob" type="button">Запустить parser job</button>
@@ -61,6 +79,9 @@
             <span id="jobStatus" data-status="idle">idle</span>
           </div>
           <p id="jobMeta">нет активной задачи</p>
+          <div id="sourceStats" class="source-stats">
+            <p class="source-stats__empty">нет статистики источников</p>
+          </div>
         </section>
 
         <section class="ops-panel">
