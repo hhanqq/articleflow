@@ -46,6 +46,15 @@ Habr RSS XML / Habr HTML search
   -> gateway-api /api/v1/feed
 ```
 
+Stored article search is also wired:
+
+```text
+gateway-api POST /api/v1/search
+  -> article-service POST /api/v1/articles/search
+  -> Postgres articles search
+  -> gateway-api returns parser-compatible candidates
+```
+
 Kafka adapters live in `packages/kafka`. Unit tests use the in-memory producer; runtime wiring uses `segmentio/kafka-go`.
 `article-service/internal/runtime.ConsumerLoop` is the testable Kafka consumer loop used to bridge a runtime consumer and a message handler.
 
@@ -71,7 +80,7 @@ Stage 3 parser runtime search is available through `services/parser-service/cmd/
 It searches Habr with full article HTML parsing and also supports `vc` through a generic RSS parser pointed at `https://vc.ru/rss`.
 Parser errors publish `parser.job.failed.v1`; multi-source jobs keep successful sources when another source is temporarily unavailable.
 
-Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints.
+Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints. Completed parser jobs return both `CandidatesCount` and the candidate payload, so clients can show fresh parser results immediately.
 
 Stage 5 ranking/feed pipeline is available through Kafka and HTTP:
 
@@ -83,7 +92,7 @@ article.discovered.v1
   -> gateway-api proxies GET /api/v1/feed to feed-service
 ```
 
-Stage 6 SPA is available in `web/`. It is a dependency-free static app with a vertical article feed, parser job controls, job status polling, API base settings, and reaction buttons.
+Stage 6 SPA is available in `web/`. It is a dependency-free static app with a vertical article feed, stored article search, separate parser job controls, job status polling, API base settings, and reaction buttons.
 
 ## Gateway API
 
@@ -100,6 +109,7 @@ Available REST endpoints:
 ```text
 GET  /healthz
 GET  /api/v1/feed?limit=20
+GET  /api/v1/articles?id=<article-id>
 POST /api/v1/search
 POST /api/v1/search/jobs
 GET  /api/v1/search/jobs/{id}
@@ -113,6 +123,8 @@ curl -X POST http://localhost:8080/api/v1/search \
   -H 'Content-Type: application/json' \
   -d '{"query":"go kafka","sources":["habr","vc"],"limit":10}'
 ```
+
+This searches already stored articles. Use an async parser job when you want to fetch and publish fresh source data.
 
 Example async parser job through gateway:
 

@@ -5,7 +5,8 @@ Static SPA for the Articleflow feed.
 Features:
 
 - vertical article feed from `gateway-api`
-- async parser job creation and polling
+- stored article search through `gateway-api`
+- separate async parser job creation and polling for fresh source fetches
 - reaction buttons for `save`, `like`, `skip`, `dislike`, and `open`
 - editable API base URL stored in local storage
 
