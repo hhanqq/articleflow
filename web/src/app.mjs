@@ -4,6 +4,7 @@ import {
   formatDate,
   formatScore,
   normalizeArticle,
+  normalizeCandidateItem,
   normalizeJobResponse,
   normalizeFeedItem,
   shouldPollJob,
@@ -18,6 +19,8 @@ const state = {
   selectedArticle: null,
   articleLoadingID: "",
   pollTimer: 0,
+  feedEmptyTitle: "",
+  feedEmptyMessage: "",
 };
 
 const elements = {
@@ -90,6 +93,8 @@ async function loadFeed() {
   try {
     const payload = await requestJSON(`/api/v1/feed?limit=30`);
     state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
+    state.feedEmptyTitle = "Лента пока пустая";
+    state.feedEmptyMessage = "Запусти поиск справа или проверь, что gateway-api и feed-service доступны.";
     renderFeed();
   } catch (error) {
     setError(error.message);
@@ -123,7 +128,7 @@ function scheduleJobPoll() {
   clearTimeout(state.pollTimer);
   if (!shouldPollJob(state.activeJob)) {
     if (String(state.activeJob?.Status ?? state.activeJob?.status ?? "") === "completed") {
-      void loadFeed();
+      renderCompletedJobResults(state.activeJob);
     }
     return;
   }
@@ -138,6 +143,22 @@ function scheduleJobPoll() {
       setError(error.message);
     }
   }, 1200);
+}
+
+function renderCompletedJobResults(job) {
+  const candidates = job.Candidates ?? job.candidates ?? [];
+  state.items = candidates.map(normalizeCandidateItem);
+  const query = job.Query?.Text ?? job.query?.text ?? elements.searchQuery.value.trim();
+  if (state.items.length === 0) {
+    state.feedEmptyTitle = "По запросу ничего не найдено";
+    state.feedEmptyMessage = query
+      ? `Parser job завершился: по запросу "${query}" найдено 0 статей в выбранных источниках.`
+      : "Parser job завершился: найдено 0 статей в выбранных источниках.";
+  } else {
+    state.feedEmptyTitle = "";
+    state.feedEmptyMessage = "";
+  }
+  renderFeed();
 }
 
 async function sendReaction(articleID, type) {
@@ -199,10 +220,12 @@ async function requestJSON(path, options = {}) {
 function renderFeed() {
   elements.feedCount.textContent = `${state.items.length}`;
   if (state.items.length === 0) {
+    const title = state.feedEmptyTitle || "Лента пока пустая";
+    const message = state.feedEmptyMessage || "Запусти поиск справа или проверь, что gateway-api и feed-service доступны.";
     elements.feed.innerHTML = `
       <section class="feed-empty">
-        <h2>Лента пока пустая</h2>
-        <p>Запусти поиск Habr справа или проверь, что gateway-api и feed-service доступны.</p>
+        <h2>${escapeHTML(title)}</h2>
+        <p>${escapeHTML(message)}</p>
       </section>
     `;
     return;

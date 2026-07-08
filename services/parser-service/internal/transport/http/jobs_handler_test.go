@@ -57,8 +57,12 @@ func TestJobsHandlerCreatesParserJob(t *testing.T) {
 func TestJobsHandlerReturnsParserJobStatus(t *testing.T) {
 	handler := NewJobsHandler(fakeJobManager{
 		job: parserv1.ParserJob{
-			ID:     "parser-job-1",
-			Status: parserv1.ParserJobStatusCompleted,
+			ID:              "parser-job-1",
+			Status:          parserv1.ParserJobStatusCompleted,
+			CandidatesCount: 1,
+			Candidates: []parserv1.ArticleCandidate{
+				{SourceName: "habr", ExternalID: "1", Title: "Go Kafka"},
+			},
 		},
 	})
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/parser/jobs/parser-job-1", nil)
@@ -75,5 +79,8 @@ func TestJobsHandlerReturnsParserJobStatus(t *testing.T) {
 	}
 	if payload.Job.Status != parserv1.ParserJobStatusCompleted {
 		t.Fatalf("unexpected status: %s", payload.Job.Status)
+	}
+	if len(payload.Job.Candidates) != 1 {
+		t.Fatalf("expected candidates in response, got %d", len(payload.Job.Candidates))
 	}
 }

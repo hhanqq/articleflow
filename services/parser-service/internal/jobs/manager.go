@@ -74,6 +74,7 @@ func (manager *Manager) Run(ctx context.Context, id string) (parserv1.ParserJob,
 	}
 	job.Status = parserv1.ParserJobStatusCompleted
 	job.CandidatesCount = len(candidates)
+	job.Candidates = append([]parserv1.ArticleCandidate(nil), candidates...)
 	job.Error = ""
 	return manager.store.Save(job), nil
 }

@@ -36,6 +36,7 @@ message ParserJob {
   int32 candidates_count = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+  repeated ArticleCandidate candidates = 8;
 }
 
 service ParserService {

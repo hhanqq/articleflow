@@ -50,8 +50,12 @@ func TestSearchJobsHandlerStartsParserJob(t *testing.T) {
 
 func TestSearchJobsHandlerGetsParserJob(t *testing.T) {
 	handler := NewSearchJobsHandler(fakeParserJobClient{job: parserv1.ParserJob{
-		ID:     "parser-job-1",
-		Status: parserv1.ParserJobStatusCompleted,
+		ID:              "parser-job-1",
+		Status:          parserv1.ParserJobStatusCompleted,
+		CandidatesCount: 1,
+		Candidates: []parserv1.ArticleCandidate{
+			{SourceName: "vc", ExternalID: "2", Title: "Travel"},
+		},
 	}})
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/search/jobs/parser-job-1", nil)
 	response := httptest.NewRecorder()
@@ -67,5 +71,8 @@ func TestSearchJobsHandlerGetsParserJob(t *testing.T) {
 	}
 	if payload.Job.Status != parserv1.ParserJobStatusCompleted {
 		t.Fatalf("unexpected status: %s", payload.Job.Status)
+	}
+	if len(payload.Job.Candidates) != 1 {
+		t.Fatalf("expected candidates in gateway response, got %d", len(payload.Job.Candidates))
 	}
 }

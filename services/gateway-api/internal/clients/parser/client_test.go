@@ -45,8 +45,12 @@ func TestClientGetsParserJob(t *testing.T) {
 			t.Fatalf("unexpected path: %s", request.URL.Path)
 		}
 		_ = json.NewEncoder(response).Encode(jobResponse{Job: parserv1.ParserJob{
-			ID:     "parser-job-1",
-			Status: parserv1.ParserJobStatusCompleted,
+			ID:              "parser-job-1",
+			Status:          parserv1.ParserJobStatusCompleted,
+			CandidatesCount: 1,
+			Candidates: []parserv1.ArticleCandidate{
+				{SourceName: "vc", ExternalID: "2", Title: "Travel"},
+			},
 		}})
 	}))
 	defer server.Close()
@@ -62,5 +66,8 @@ func TestClientGetsParserJob(t *testing.T) {
 	}
 	if job.Status != parserv1.ParserJobStatusCompleted {
 		t.Fatalf("unexpected status: %s", job.Status)
+	}
+	if len(job.Candidates) != 1 {
+		t.Fatalf("expected candidates from parser-service, got %d", len(job.Candidates))
 	}
 }

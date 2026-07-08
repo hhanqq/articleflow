@@ -64,10 +64,16 @@ func TestParserJobCarriesExecutionResult(t *testing.T) {
 		ID:              "job-1",
 		Status:          ParserJobStatusCompleted,
 		CandidatesCount: 3,
-		Error:           "",
+		Candidates: []ArticleCandidate{
+			{SourceName: "habr", ExternalID: "1", Title: "First"},
+		},
+		Error: "",
 	}
 
 	if job.CandidatesCount != 3 {
 		t.Fatalf("unexpected candidates count: %d", job.CandidatesCount)
+	}
+	if len(job.Candidates) != 1 {
+		t.Fatalf("expected job candidates to be carried, got %d", len(job.Candidates))
 	}
 }

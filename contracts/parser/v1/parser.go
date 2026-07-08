@@ -63,6 +63,7 @@ type ParserJob struct {
 	Status          string
 	Error           string
 	CandidatesCount int
+	Candidates      []ArticleCandidate
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }

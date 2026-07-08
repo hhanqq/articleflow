@@ -20,12 +20,12 @@ func (publisher fakeSearchPublisher) SearchAndPublish(_ context.Context, _ parse
 	return publisher.candidates, nil
 }
 
-func TestRunSearchJobCompletesAndStoresCandidateCount(t *testing.T) {
+func TestRunSearchJobCompletesAndStoresCandidates(t *testing.T) {
 	store := NewMemoryStore()
 	manager := NewManager(store, fakeSearchPublisher{
 		candidates: []parserv1.ArticleCandidate{
-			{Title: "First"},
-			{Title: "Second"},
+			{SourceName: "habr", ExternalID: "1", Title: "First"},
+			{SourceName: "vc", ExternalID: "2", Title: "Second"},
 		},
 	})
 
@@ -44,12 +44,21 @@ func TestRunSearchJobCompletesAndStoresCandidateCount(t *testing.T) {
 	if completed.CandidatesCount != 2 {
 		t.Fatalf("expected 2 candidates, got %d", completed.CandidatesCount)
 	}
+	if len(completed.Candidates) != 2 {
+		t.Fatalf("expected 2 stored candidates, got %d", len(completed.Candidates))
+	}
+	if completed.Candidates[0].Title != "First" {
+		t.Fatalf("unexpected first candidate: %s", completed.Candidates[0].Title)
+	}
 	stored, ok := store.FindByID(job.ID)
 	if !ok {
 		t.Fatal("expected stored job")
 	}
 	if stored.Status != parserv1.ParserJobStatusCompleted {
 		t.Fatalf("expected stored completed status, got %s", stored.Status)
+	}
+	if len(stored.Candidates) != 2 {
+		t.Fatalf("expected stored candidates, got %d", len(stored.Candidates))
 	}
 }
 

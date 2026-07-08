@@ -6,6 +6,7 @@ import {
   buildSearchJobPayload,
   formatScore,
   normalizeArticle,
+  normalizeCandidateItem,
   normalizeJobResponse,
   normalizeFeedItem,
   shouldPollJob,
@@ -29,6 +30,24 @@ test("normalizeFeedItem accepts Go JSON field names from gateway", () => {
   assert.equal(item.url, "https://habr.com/1");
   assert.deepEqual(item.tags, ["go", "kafka"]);
   assert.equal(item.score, 23.45);
+});
+
+test("normalizeCandidateItem builds stable feed item id from parser candidate", () => {
+  const item = normalizeCandidateItem({
+    SourceName: "vc",
+    ExternalID: "42",
+    Title: "Путешествие в Китай",
+    Summary: "Маршрут и бюджет",
+    URL: "https://vc.ru/story/42",
+    Tags: ["travel"],
+  });
+
+  assert.equal(item.id, "vc:42");
+  assert.equal(item.title, "Путешествие в Китай");
+  assert.equal(item.sourceName, "vc");
+  assert.equal(item.url, "https://vc.ru/story/42");
+  assert.deepEqual(item.tags, ["travel"]);
+  assert.equal(item.score, 0);
 });
 
 test("normalizeArticle accepts article detail payload from gateway", () => {

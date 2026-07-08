@@ -15,6 +15,18 @@ export function normalizeFeedItem(raw = {}) {
   };
 }
 
+export function normalizeCandidateItem(raw = {}) {
+  const sourceName = String(raw.SourceName ?? raw.source_name ?? "");
+  const externalID = String(raw.ExternalID ?? raw.external_id ?? "");
+  const fallbackID = sourceName && externalID ? `${sourceName}:${externalID}` : raw.URL ?? raw.url ?? "";
+  return normalizeFeedItem({
+    ...raw,
+    ArticleID: raw.ArticleID ?? raw.article_id ?? raw.ID ?? raw.id ?? fallbackID,
+    SourceName: raw.SourceName ?? raw.source_name ?? sourceName,
+    Score: raw.Score ?? raw.score ?? 0,
+  });
+}
+
 export function normalizeArticle(raw = {}) {
   const payload = raw.article ?? raw.Article ?? raw;
   const tags = payload.Tags ?? payload.tags ?? [];
