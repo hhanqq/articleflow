@@ -14,7 +14,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.GRPCAddr != ":9001" {
 		t.Fatalf("unexpected gRPC addr: %s", cfg.GRPCAddr)
 	}
-	if cfg.KafkaBrokers != "localhost:9092" {
+	if cfg.KafkaBrokers != "127.0.0.1:9092" {
 		t.Fatalf("unexpected Kafka brokers: %s", cfg.KafkaBrokers)
 	}
 	if cfg.ArticleDiscoveredTopic != "article.discovered.v1" {

@@ -21,7 +21,7 @@ func Load() Config {
 	return Config{
 		ServiceName:             "user-service",
 		GRPCAddr:                sharedconfig.String("USER_GRPC_ADDR", ":9003"),
-		KafkaBrokers:            sharedconfig.String("KAFKA_BROKERS", "localhost:9092"),
+		KafkaBrokers:            sharedconfig.String("KAFKA_BROKERS", "127.0.0.1:9092"),
 		UserReactionTopic:       sharedconfig.String("USER_REACTION_TOPIC", "user.reaction.created.v1"),
 		UserConsumerGroupID:     sharedconfig.String("USER_CONSUMER_GROUP_ID", "user-service"),
 		UserConsumerMaxMessages: sharedconfig.Int("USER_CONSUMER_MAX_MESSAGES", 0),

@@ -14,7 +14,7 @@ Run:
 
 ```bash
 source ../../scripts/env.sh
-KAFKA_BROKERS=localhost:9092 \
+KAFKA_BROKERS=127.0.0.1:9092 \
 go run ./cmd/ranking-service
 ```
 

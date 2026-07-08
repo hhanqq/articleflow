@@ -39,7 +39,7 @@ docker exec deployments-kafka-1 kafka-topics --bootstrap-server localhost:9092 -
 
 (
   cd services/feed-service
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
     FEED_HTTP_ADDR=:18082 \
     FEED_STORAGE_DRIVER=postgres \
     FEED_POSTGRES_DSN='postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable' \
@@ -50,7 +50,7 @@ FEED_PID=$!
 
 (
   cd services/ranking-service
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
     RANKING_CONSUMER_GROUP_ID="ranking-${RUN_ID}" \
     go run ./cmd/ranking-service
 ) >"$RANKING_LOG" 2>&1 &
@@ -66,7 +66,7 @@ done
 sleep 2
 (
   cd services/parser-service
-  KAFKA_BROKERS=localhost:9092 go run ./cmd/publish-discovered
+  KAFKA_BROKERS=127.0.0.1:9092 go run ./cmd/publish-discovered
 ) >/tmp/articleflow-publish-"${RUN_ID}".log 2>&1
 
 for _ in {1..30}; do

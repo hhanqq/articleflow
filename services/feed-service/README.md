@@ -13,6 +13,6 @@ Run:
 
 ```bash
 source ../../scripts/env.sh
-KAFKA_BROKERS=localhost:9092 FEED_HTTP_ADDR=:8082 \
+KAFKA_BROKERS=127.0.0.1:9092 FEED_HTTP_ADDR=:8082 \
 go run ./cmd/feed-service
 ```

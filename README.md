@@ -157,7 +157,7 @@ source scripts/env.sh
 cd services/article-service
 ARTICLE_STORAGE_DRIVER=postgres \
 ARTICLE_POSTGRES_DSN='postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable' \
-KAFKA_BROKERS=localhost:9092 \
+KAFKA_BROKERS=127.0.0.1:9092 \
 ARTICLE_DISCOVERED_TOPIC=article.discovered.v1 \
 ARTICLE_CONSUMER_GROUP_ID=article-service \
 go run ./cmd/article-service
@@ -166,7 +166,7 @@ go run ./cmd/article-service
 Useful runtime env:
 
 ```text
-KAFKA_BROKERS=localhost:9092
+KAFKA_BROKERS=127.0.0.1:9092
 ARTICLE_DISCOVERED_TOPIC=article.discovered.v1
 ARTICLE_CONSUMER_GROUP_ID=article-service
 ARTICLE_CONSUMER_MAX_MESSAGES=0
@@ -192,7 +192,7 @@ Publish a sample `article.discovered.v1` event:
 ```bash
 source scripts/env.sh
 cd services/parser-service
-KAFKA_BROKERS=localhost:9092 go run ./cmd/publish-discovered
+KAFKA_BROKERS=127.0.0.1:9092 go run ./cmd/publish-discovered
 ```
 
 Run a real Habr search and publish discovered articles:
@@ -200,7 +200,7 @@ Run a real Habr search and publish discovered articles:
 ```bash
 source scripts/env.sh
 cd services/parser-service
-KAFKA_BROKERS=localhost:9092 \
+KAFKA_BROKERS=127.0.0.1:9092 \
 HABR_REQUEST_DELAY_MS=500 \
 go run ./cmd/search-habr --query "go kafka" --limit 5
 ```
@@ -218,7 +218,7 @@ Default address: `:8081`.
 ```bash
 source scripts/env.sh
 cd services/parser-service
-PARSER_HTTP_ADDR=:8081 KAFKA_BROKERS=localhost:9092 go run ./cmd/parser-service
+PARSER_HTTP_ADDR=:8081 KAFKA_BROKERS=127.0.0.1:9092 go run ./cmd/parser-service
 ```
 
 Available parser job endpoints:
@@ -268,7 +268,7 @@ Run ranking-service:
 ```bash
 source scripts/env.sh
 cd services/ranking-service
-KAFKA_BROKERS=localhost:9092 go run ./cmd/ranking-service
+KAFKA_BROKERS=127.0.0.1:9092 go run ./cmd/ranking-service
 ```
 
 Run feed-service:
@@ -276,7 +276,7 @@ Run feed-service:
 ```bash
 source scripts/env.sh
 cd services/feed-service
-KAFKA_BROKERS=localhost:9092 FEED_HTTP_ADDR=:8082 go run ./cmd/feed-service
+KAFKA_BROKERS=127.0.0.1:9092 FEED_HTTP_ADDR=:8082 go run ./cmd/feed-service
 ```
 
 Run feed-service with persistent Postgres storage:
@@ -286,7 +286,7 @@ source scripts/env.sh
 cd services/feed-service
 FEED_STORAGE_DRIVER=postgres \
 FEED_POSTGRES_DSN='postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable' \
-KAFKA_BROKERS=localhost:9092 \
+KAFKA_BROKERS=127.0.0.1:9092 \
 FEED_HTTP_ADDR=:8082 \
 go run ./cmd/feed-service
 ```

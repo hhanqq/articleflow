@@ -17,4 +17,4 @@ Useful env:
 
 - `HABR_BASE_URL` defaults to `https://habr.com`
 - `VC_RSS_FEED_URL` defaults to `https://vc.ru/rss`
-- `KAFKA_BROKERS` defaults to `localhost:9092`
+- `KAFKA_BROKERS` defaults to `127.0.0.1:9092`

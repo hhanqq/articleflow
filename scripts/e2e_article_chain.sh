@@ -65,7 +65,7 @@ echo "Starting article-service for one Kafka message..."
   ARTICLE_STORAGE_DRIVER=postgres \
   ARTICLE_POSTGRES_DSN='postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable' \
   ARTICLE_CONSUMER_MAX_MESSAGES=1 \
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
   go run ./cmd/article-service
 ) >"$ARTICLE_LOG" 2>&1 &
 ARTICLE_PID=$!
@@ -75,7 +75,7 @@ sleep 3
 echo "Publishing sample article.discovered.v1 event..."
 (
   cd "$ROOT_DIR/services/parser-service"
-  KAFKA_BROKERS=localhost:9092 go run ./cmd/publish-discovered
+  KAFKA_BROKERS=127.0.0.1:9092 go run ./cmd/publish-discovered
 )
 
 echo "Waiting for article-service to consume..."

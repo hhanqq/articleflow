@@ -67,13 +67,13 @@ build_service user-service
 build_service gateway-api
 
 start_service parser-service "$PROJECT_ROOT/services/parser-service" env \
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
   PARSER_HTTP_ADDR=:8081 \
   HABR_REQUEST_DELAY_MS=500 \
   "$BIN_DIR/parser-service"
 
 start_service article-service "$PROJECT_ROOT/services/article-service" env \
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
   ARTICLE_HTTP_ADDR=:8083 \
   ARTICLE_STORAGE_DRIVER=postgres \
   ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable \
@@ -81,13 +81,13 @@ start_service article-service "$PROJECT_ROOT/services/article-service" env \
   "$BIN_DIR/article-service"
 
 start_service ranking-service "$PROJECT_ROOT/services/ranking-service" env \
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
   RANKING_CONSUMER_GROUP_ID=ranking-service-dev \
   RANKING_REACTION_CONSUMER_GROUP_ID=ranking-service-reactions-dev \
   "$BIN_DIR/ranking-service"
 
 start_service feed-service "$PROJECT_ROOT/services/feed-service" env \
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
   FEED_HTTP_ADDR=:8082 \
   FEED_STORAGE_DRIVER=postgres \
   FEED_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable \
@@ -95,7 +95,7 @@ start_service feed-service "$PROJECT_ROOT/services/feed-service" env \
   "$BIN_DIR/feed-service"
 
 start_service user-service "$PROJECT_ROOT/services/user-service" env \
-  KAFKA_BROKERS=localhost:9092 \
+  KAFKA_BROKERS=127.0.0.1:9092 \
   USER_STORAGE_DRIVER=postgres \
   USER_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable \
   USER_CONSUMER_GROUP_ID=user-service-dev \

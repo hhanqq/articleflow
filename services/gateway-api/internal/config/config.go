@@ -22,7 +22,7 @@ func Load() Config {
 		ArticleServiceURL: sharedconfig.String("ARTICLE_SERVICE_URL", "http://localhost:8083"),
 		ParserServiceURL:  sharedconfig.String("PARSER_SERVICE_URL", "http://localhost:8081"),
 		FeedServiceURL:    sharedconfig.String("FEED_SERVICE_URL", "http://localhost:8082"),
-		KafkaBrokers:      sharedconfig.String("KAFKA_BROKERS", "localhost:9092"),
+		KafkaBrokers:      sharedconfig.String("KAFKA_BROKERS", "127.0.0.1:9092"),
 	}
 }
 

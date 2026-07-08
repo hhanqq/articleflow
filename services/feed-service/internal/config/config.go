@@ -23,7 +23,7 @@ func Load() Config {
 		ServiceName:             "feed-service",
 		GRPCAddr:                sharedconfig.String("FEED_GRPC_ADDR", ":9002"),
 		HTTPAddr:                sharedconfig.String("FEED_HTTP_ADDR", ":8082"),
-		KafkaBrokers:            sharedconfig.String("KAFKA_BROKERS", "localhost:9092"),
+		KafkaBrokers:            sharedconfig.String("KAFKA_BROKERS", "127.0.0.1:9092"),
 		FeedScoredTopic:         sharedconfig.String("FEED_SCORED_TOPIC", "feed.item.scored.v1"),
 		FeedConsumerGroupID:     sharedconfig.String("FEED_CONSUMER_GROUP_ID", "feed-service"),
 		FeedConsumerMaxMessages: sharedconfig.Int("FEED_CONSUMER_MAX_MESSAGES", 0),

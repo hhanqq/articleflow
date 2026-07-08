@@ -20,7 +20,7 @@ type Config struct {
 func Load() Config {
 	return Config{
 		ServiceName:        "parser-service",
-		KafkaBrokers:       sharedconfig.String("KAFKA_BROKERS", "localhost:9092"),
+		KafkaBrokers:       sharedconfig.String("KAFKA_BROKERS", "127.0.0.1:9092"),
 		HTTPAddr:           sharedconfig.String("PARSER_HTTP_ADDR", ":8081"),
 		HabrBaseURL:        sharedconfig.String("HABR_BASE_URL", "https://habr.com"),
 		HabrMaxAttempts:    sharedconfig.Int("HABR_MAX_ATTEMPTS", 3),

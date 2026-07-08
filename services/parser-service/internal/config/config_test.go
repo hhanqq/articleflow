@@ -8,7 +8,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ServiceName != "parser-service" {
 		t.Fatalf("unexpected service name: %s", cfg.ServiceName)
 	}
-	if cfg.KafkaBrokers != "localhost:9092" {
+	if cfg.KafkaBrokers != "127.0.0.1:9092" {
 		t.Fatalf("unexpected Kafka brokers: %s", cfg.KafkaBrokers)
 	}
 	if cfg.HTTPAddr != ":8081" {
