@@ -49,24 +49,24 @@
             <span>Источники</span>
             <strong>контроль выдачи</strong>
           </div>
-          <fieldset class="source-controls">
-            <label>
+          <div class="source-controls" role="group" aria-label="Источники поиска">
+            <label class="source-option">
               <input id="sourceAll" type="checkbox" checked />
-              Все
+              <span>Все</span>
             </label>
-            <label>
+            <label class="source-option">
               <input type="checkbox" value="habr" data-source-option />
-              Habr
+              <span>Habr</span>
             </label>
-            <label>
+            <label class="source-option">
               <input type="checkbox" value="vc" data-source-option />
-              vc.ru
+              <span>vc.ru</span>
             </label>
-            <label>
+            <label class="source-option">
               <input type="checkbox" value="vc_rss" data-source-option />
-              vc RSS
+              <span>vc RSS</span>
             </label>
-          </fieldset>
+          </div>
           <div class="form-actions">
             <button id="searchStored" type="submit">Искать в базе</button>
             <button id="runParserJob" type="button">Запустить parser job</button>
