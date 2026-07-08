@@ -34,7 +34,7 @@ func Load() Config {
 		HabrRequestDelayMS: sharedconfig.Int("HABR_REQUEST_DELAY_MS", 500),
 		VCBaseURL:          sharedconfig.String("VC_BASE_URL", "https://vc.ru"),
 		VCRSSFeedURL:       sharedconfig.String("VC_RSS_FEED_URL", "https://vc.ru/rss"),
-		VCSearchProvider:   sharedconfig.String("VC_SEARCH_PROVIDER", ""),
+		VCSearchProvider:   sharedconfig.String("VC_SEARCH_PROVIDER", "discovery"),
 		GoogleSearchAPIKey: sharedconfig.String("GOOGLE_SEARCH_API_KEY", ""),
 		GoogleSearchCX:     sharedconfig.String("GOOGLE_SEARCH_CX", ""),
 		BingSearchAPIKey:   sharedconfig.String("BING_SEARCH_API_KEY", ""),

@@ -2,6 +2,7 @@ package vc
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,9 +12,13 @@ import (
 
 type fakeURLSearcher struct {
 	urls []string
+	err  error
 }
 
 func (searcher fakeURLSearcher) SearchURLs(_ context.Context, query string, limit int) ([]string, error) {
+	if searcher.err != nil {
+		return nil, searcher.err
+	}
 	if query != "путешествие в китай" {
 		return nil, nil
 	}
@@ -144,5 +149,85 @@ window.__INITIAL_STATE__ = {
 	}
 	if candidates[0].Author != "Редакция vc.ru" {
 		t.Fatalf("unexpected author: %s", candidates[0].Author)
+	}
+}
+
+func TestClientSearchFallsBackToRSSWhenConfiguredURLSearcherReturnsNoURLs(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	mux.HandleFunc("/rss", func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/rss+xml")
+		_, _ = response.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <item>
+    <title>RSS fallback title</title>
+    <link>` + server.URL + `/fallback/1</link>
+    <guid>rss-fallback-1</guid>
+    <description>Fallback summary</description>
+  </item>
+</channel></rss>`))
+	})
+	mux.HandleFunc("/fallback/1", func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = response.Write([]byte(`<!doctype html><html><head>
+<script type="application/ld+json">{
+  "@context":"https://schema.org",
+  "@type":"NewsArticle",
+  "headline":"HTML fallback title",
+  "description":"HTML fallback summary",
+  "text":"Fallback article body",
+  "url":"` + server.URL + `/fallback/1"
+}</script>
+</head><body></body></html>`))
+	})
+
+	client := NewClient(ClientOptions{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+		Language:   "ru",
+		URLSearcher: fakeURLSearcher{
+			urls: nil,
+		},
+	})
+
+	candidates, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "fallback", Limit: 5})
+
+	if err != nil {
+		t.Fatalf("search vc: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected RSS fallback candidate, got %#v", candidates)
+	}
+	if candidates[0].Title != "HTML fallback title" {
+		t.Fatalf("unexpected fallback title: %s", candidates[0].Title)
+	}
+}
+
+func TestClientSearchReturnsURLSearcherErrorWhenFallbackIsEmpty(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	mux.HandleFunc("/rss", func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/rss+xml")
+		_, _ = response.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel></channel></rss>`))
+	})
+
+	client := NewClient(ClientOptions{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+		Language:   "ru",
+		URLSearcher: fakeURLSearcher{
+			err: errors.New("discovery unavailable"),
+		},
+	})
+
+	_, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "путешествие в китай", Limit: 5})
+
+	if err == nil || err.Error() != "discovery unavailable" {
+		t.Fatalf("expected discovery error, got %v", err)
 	}
 }

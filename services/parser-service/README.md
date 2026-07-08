@@ -5,7 +5,7 @@ Fetches external article sources and publishes `article.discovered.v1` events to
 Current sources:
 
 - `habr`: Habr RSS search plus full article HTML parsing
-- `vc`: full-site vc.ru search through configured official search provider, then public article HTML parsing through `window.__INITIAL_STATE__`, JSON-LD, and meta tags; falls back to RSS if no provider is configured
+- `vc`: full-site vc.ru search through the public discovery API used by `https://vc.ru/discovery?q=...`, then public article HTML parsing through `window.__INITIAL_STATE__`, JSON-LD, and meta tags; falls back to RSS when discovery is empty or temporarily unavailable
 - `vc_rss`: generic RSS parser pointed at `https://vc.ru/rss`
 - custom RSS sources from `CUSTOM_RSS_SOURCES`, for example `dzen=https://dzen.ru/rss,yandex=https://news.yandex.ru/index.rss`
 
@@ -20,7 +20,7 @@ Useful env:
 - `HABR_BASE_URL` defaults to `https://habr.com`
 - `VC_BASE_URL` defaults to `https://vc.ru`
 - `VC_RSS_FEED_URL` defaults to `https://vc.ru/rss`
-- `VC_SEARCH_PROVIDER` can be `google`, `google_cse`, or `bing`
+- `VC_SEARCH_PROVIDER` defaults to `discovery`; it can also be `google`, `google_cse`, or `bing`
 - `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_CX` enable Google Programmable Search for `vc`
 - `BING_SEARCH_API_KEY` enables Bing Web Search for `vc`
 - `CUSTOM_RSS_SOURCES` is a comma-separated source registry in `name=url` format

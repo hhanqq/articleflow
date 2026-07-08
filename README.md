@@ -78,7 +78,7 @@ deployments/postgres/init/002_articles.sql
 
 Stage 3 parser runtime search is available through `services/parser-service/cmd/search-habr` and parser-service HTTP jobs.
 It searches Habr with full article HTML parsing. Parser-service also has a source registry with `vc`, `vc_rss`, and custom RSS sources configured through `CUSTOM_RSS_SOURCES`.
-The current `vc` implementation can search the full vc.ru archive through an official external search API using `site:vc.ru`, then opens each public article HTML page and extracts structured article data from `window.__INITIAL_STATE__`, JSON-LD, and meta tags. If no search provider keys are configured, `vc` falls back to public RSS discovery. `vc_rss` is always the explicit RSS-only source.
+The current `vc` implementation searches the full vc.ru archive through the same public discovery API used by `https://vc.ru/discovery?q=...`, then opens each public article HTML page and extracts structured article data from `window.__INITIAL_STATE__`, JSON-LD, and meta tags. If discovery returns no URLs or is temporarily unavailable, `vc` falls back to public RSS discovery. Google/Bing site search providers remain optional alternatives. `vc_rss` is always the explicit RSS-only source.
 Parser errors publish `parser.job.failed.v1`; multi-source jobs keep successful sources when another source is temporarily unavailable.
 
 Stage 4 search jobs are available through parser-service HTTP endpoints and gateway proxy endpoints. Completed parser jobs return both `CandidatesCount` and the candidate payload, so clients can show fresh parser results immediately. Runtime parser results are normalized, deduplicated, published to Kafka, and then stored by article-service.
@@ -190,7 +190,7 @@ FEED_CONSUMER_GROUP_ID=feed-service
 FEED_CONSUMER_MAX_MESSAGES=0
 VC_BASE_URL=https://vc.ru
 VC_RSS_FEED_URL=https://vc.ru/rss
-VC_SEARCH_PROVIDER=google
+VC_SEARCH_PROVIDER=discovery
 GOOGLE_SEARCH_API_KEY=
 GOOGLE_SEARCH_CX=
 BING_SEARCH_API_KEY=
@@ -258,7 +258,13 @@ curl -X POST http://localhost:8081/api/v1/parser/jobs \
 
 If `sources` is omitted, parser-service runs every registered parser. Built-in source names are `habr`, `vc`, and `vc_rss`; custom RSS entries use the names from `CUSTOM_RSS_SOURCES`.
 
-To make `vc` search the full vc.ru archive instead of only current RSS items, configure one official search provider:
+By default `vc` searches the full vc.ru archive through the public discovery endpoint:
+
+```bash
+VC_SEARCH_PROVIDER=discovery
+```
+
+This calls `https://api.vc.ru/v2.10/search/posts?markdown=false&q=<query>`, normalizes returned vc.ru article URLs, and parses each public article HTML page. To use an external site search provider instead, configure Google or Bing:
 
 ```bash
 VC_SEARCH_PROVIDER=google
@@ -273,7 +279,7 @@ VC_SEARCH_PROVIDER=bing
 BING_SEARCH_API_KEY=<bing-web-search-api-key>
 ```
 
-Then run a parser job with `sources:["vc"]`. The parser sends `site:vc.ru <query>` to the provider, normalizes returned vc.ru URLs, and parses each public article HTML page.
+Then run a parser job with `sources:["vc"]`.
 
 Run the local e2e check for the first backend chain:
 

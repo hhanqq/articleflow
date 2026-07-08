@@ -64,8 +64,23 @@ func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if client.urlSearcher != nil {
-		return client.searchURLs(ctx, query.Normalize())
+		candidates, err := client.searchURLs(ctx, query.Normalize())
+		if err == nil && len(candidates) > 0 {
+			return candidates, nil
+		}
+		fallbackCandidates, fallbackErr := client.searchRSS(ctx, query)
+		if fallbackErr == nil && (len(fallbackCandidates) > 0 || err == nil) {
+			return fallbackCandidates, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		return nil, fallbackErr
 	}
+	return client.searchRSS(ctx, query)
+}
+
+func (client *Client) searchRSS(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	candidates, err := client.fallback.Search(ctx, query)
 	if err != nil {
 		return nil, err

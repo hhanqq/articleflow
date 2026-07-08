@@ -29,7 +29,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.VCRSSFeedURL != "https://vc.ru/rss" {
 		t.Fatalf("unexpected vc.ru RSS URL: %s", cfg.VCRSSFeedURL)
 	}
-	if cfg.VCSearchProvider != "" {
+	if cfg.VCSearchProvider != "discovery" {
 		t.Fatalf("unexpected vc search provider: %s", cfg.VCSearchProvider)
 	}
 }

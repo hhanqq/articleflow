@@ -44,6 +44,8 @@ func BuildParsers(cfg config.Config) []search.Parser {
 
 func buildVCURLSearcher(cfg config.Config) vc.URLSearcher {
 	switch cfg.VCSearchProvider {
+	case "", "discovery", "vc_discovery":
+		return vc.NewDiscoverySearcher(vc.DiscoverySearcherOptions{})
 	case "google", "google_cse":
 		if cfg.GoogleSearchAPIKey == "" || cfg.GoogleSearchCX == "" {
 			return nil

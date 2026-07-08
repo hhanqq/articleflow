@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
+	"github.com/hanq/articleflow/services/parser-service/internal/parsers/vc"
 )
 
 func TestBuildParsersRegistersBuiltInAndCustomSources(t *testing.T) {
@@ -42,5 +43,24 @@ func TestBuildParsersRegistersVCWithGoogleSearchProvider(t *testing.T) {
 
 	if !names["vc"] {
 		t.Fatalf("expected vc parser in registry, got %#v", names)
+	}
+}
+
+func TestBuildVCURLSearcherDefaultsToDiscoveryProvider(t *testing.T) {
+	searcher := buildVCURLSearcher(config.Config{VCBaseURL: "https://vc.ru"})
+
+	if _, ok := searcher.(*vc.DiscoverySearcher); !ok {
+		t.Fatalf("expected default discovery searcher, got %T", searcher)
+	}
+}
+
+func TestBuildVCURLSearcherSupportsExplicitDiscoveryProvider(t *testing.T) {
+	searcher := buildVCURLSearcher(config.Config{
+		VCBaseURL:        "https://vc.ru",
+		VCSearchProvider: "discovery",
+	})
+
+	if _, ok := searcher.(*vc.DiscoverySearcher); !ok {
+		t.Fatalf("expected discovery searcher, got %T", searcher)
 	}
 }
