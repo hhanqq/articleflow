@@ -145,3 +145,53 @@ func TestSearchAndPublishKeepsSuccessfulSourcesWhenAnotherSourceFails(t *testing
 		t.Fatalf("unexpected topics: %s, %s", messages[0].Topic, messages[1].Topic)
 	}
 }
+
+func TestSearchAndPublishNormalizesAndDeduplicatesCandidates(t *testing.T) {
+	producer := articleflowkafka.NewMemoryProducer()
+	usecase := NewUsecase(producer, []Parser{
+		fakeParser{
+			sourceName: "vc",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName: " vc ",
+					URL:        " https://vc.ru/dev/123-go-kafka?utm_source=rss ",
+					Title:      " Go Kafka ",
+					Summary:    " First ",
+				},
+			},
+		},
+		fakeParser{
+			sourceName: "vc_rss",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName: "vc_rss",
+					ExternalID: "rss-duplicate",
+					URL:        "https://vc.ru/dev/123-go-kafka",
+					Title:      "Go Kafka duplicate",
+				},
+			},
+		},
+	})
+
+	candidates, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:    "go kafka",
+		Sources: []string{"vc", "vc_rss"},
+		Limit:   10,
+	})
+
+	if err != nil {
+		t.Fatalf("search and publish failed: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 deduplicated candidate, got %d", len(candidates))
+	}
+	if candidates[0].URL != "https://vc.ru/dev/123-go-kafka" {
+		t.Fatalf("expected normalized url, got %s", candidates[0].URL)
+	}
+	if candidates[0].ExternalID == "" {
+		t.Fatal("expected stable external id")
+	}
+	if len(producer.Messages()) != 1 {
+		t.Fatalf("expected 1 published message, got %d", len(producer.Messages()))
+	}
+}
