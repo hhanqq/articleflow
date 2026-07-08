@@ -41,7 +41,7 @@ func (manager *Manager) Start(ctx context.Context, query parserv1.SearchQuery) (
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	return manager.store.Save(job), nil
+	return manager.store.Save(ctx, job)
 }
 
 func (manager *Manager) StartAsync(ctx context.Context, query parserv1.SearchQuery) (parserv1.ParserJob, error) {
@@ -56,13 +56,18 @@ func (manager *Manager) StartAsync(ctx context.Context, query parserv1.SearchQue
 }
 
 func (manager *Manager) Run(ctx context.Context, id string) (parserv1.ParserJob, error) {
-	job, ok := manager.store.FindByID(id)
+	job, ok, err := manager.store.FindByID(ctx, id)
+	if err != nil {
+		return parserv1.ParserJob{}, err
+	}
 	if !ok {
 		return parserv1.ParserJob{}, errors.New("parser job not found")
 	}
 	job.Status = parserv1.ParserJobStatusRunning
 	job.UpdatedAt = time.Now().UTC()
-	manager.store.Save(job)
+	if _, err := manager.store.Save(ctx, job); err != nil {
+		return parserv1.ParserJob{}, err
+	}
 
 	result, err := manager.publisher.SearchAndPublish(ctx, job.Query)
 	job.UpdatedAt = time.Now().UTC()
@@ -70,18 +75,25 @@ func (manager *Manager) Run(ctx context.Context, id string) (parserv1.ParserJob,
 	if err != nil {
 		job.Status = parserv1.ParserJobStatusFailed
 		job.Error = err.Error()
-		manager.store.Save(job)
+		_, saveErr := manager.store.Save(ctx, job)
+		if saveErr != nil {
+			return job, saveErr
+		}
 		return job, err
 	}
 	job.Status = parserv1.ParserJobStatusCompleted
 	job.CandidatesCount = len(result.Candidates)
 	job.Candidates = append([]parserv1.ArticleCandidate(nil), result.Candidates...)
 	job.Error = ""
-	return manager.store.Save(job), nil
+	return manager.store.Save(ctx, job)
 }
 
-func (manager *Manager) Get(id string) (parserv1.ParserJob, bool) {
-	return manager.store.FindByID(id)
+func (manager *Manager) Get(ctx context.Context, id string) (parserv1.ParserJob, bool, error) {
+	return manager.store.FindByID(ctx, id)
+}
+
+func (manager *Manager) List(ctx context.Context, limit int) ([]parserv1.ParserJob, error) {
+	return manager.store.List(ctx, limit)
 }
 
 func stableJobID(query parserv1.SearchQuery, createdAt time.Time) string {

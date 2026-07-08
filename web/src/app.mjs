@@ -7,6 +7,7 @@ import {
   normalizeArticle,
   normalizeCandidateItem,
   normalizeJobResponse,
+  normalizeJobsResponse,
   normalizeFeedItem,
   normalizeSearchResponse,
   normalizeSourceStats,
@@ -19,6 +20,7 @@ const state = {
   items: [],
   selectedIndex: 0,
   activeJob: null,
+  jobHistory: [],
   selectedArticle: null,
   articleLoadingID: "",
   pollTimer: 0,
@@ -39,6 +41,8 @@ const elements = {
   searchLimit: document.querySelector("#searchLimit"),
   jobStatus: document.querySelector("#jobStatus"),
   jobMeta: document.querySelector("#jobMeta"),
+  refreshJobs: document.querySelector("#refreshJobs"),
+  jobHistory: document.querySelector("#jobHistory"),
   sourceAll: document.querySelector("#sourceAll"),
   sourceOptions: [...document.querySelectorAll("[data-source-option]")],
   sourceStats: document.querySelector("#sourceStats"),
@@ -63,6 +67,10 @@ elements.userID.addEventListener("change", () => {
 
 elements.refreshFeed.addEventListener("click", () => {
   void loadFeed();
+});
+
+elements.refreshJobs.addEventListener("click", () => {
+  void loadJobHistory();
 });
 
 elements.searchForm.addEventListener("submit", (event) => {
@@ -110,7 +118,16 @@ elements.articleDetail.addEventListener("click", (event) => {
   }
 });
 
+elements.jobHistory.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-job-id]");
+  if (!button) {
+    return;
+  }
+  void openJob(button.dataset.jobId);
+});
+
 void loadFeed();
+void loadJobHistory();
 
 async function loadFeed() {
   setError("");
@@ -144,6 +161,7 @@ async function startSearchJob() {
     });
     state.activeJob = normalizeJobResponse(jobPayload);
     renderJob(state.activeJob);
+    void loadJobHistory();
     scheduleJobPoll();
   } catch (error) {
     setError(error.message);
@@ -186,6 +204,7 @@ function scheduleJobPoll() {
   if (!shouldPollJob(state.activeJob)) {
     if (String(state.activeJob?.Status ?? state.activeJob?.status ?? "") === "completed") {
       renderCompletedJobResults(state.activeJob);
+      void loadJobHistory();
     }
     return;
   }
@@ -195,11 +214,45 @@ function scheduleJobPoll() {
       const payload = await requestJSON(`/api/v1/search/jobs/${encodeURIComponent(jobID)}`);
       state.activeJob = normalizeJobResponse(payload);
       renderJob(state.activeJob);
+      if (!shouldPollJob(state.activeJob)) {
+        void loadJobHistory();
+      }
       scheduleJobPoll();
     } catch (error) {
       setError(error.message);
     }
   }, 1200);
+}
+
+async function loadJobHistory() {
+  try {
+    const payload = await requestJSON("/api/v1/search/jobs?limit=8");
+    state.jobHistory = normalizeJobsResponse(payload);
+    renderJobHistory();
+  } catch (error) {
+    state.jobHistory = [];
+    renderJobHistory(error.message);
+  }
+}
+
+async function openJob(jobID) {
+  const normalizedID = String(jobID ?? "").trim();
+  if (!normalizedID) {
+    return;
+  }
+  setError("");
+  try {
+    const payload = await requestJSON(`/api/v1/search/jobs/${encodeURIComponent(normalizedID)}`);
+    state.activeJob = normalizeJobResponse(payload);
+    renderJob(state.activeJob);
+    if (!shouldPollJob(state.activeJob)) {
+      renderCompletedJobResults(state.activeJob);
+    } else {
+      scheduleJobPoll();
+    }
+  } catch (error) {
+    setError(error.message);
+  }
 }
 
 function renderCompletedJobResults(job) {
@@ -362,6 +415,36 @@ function renderJob(job) {
   elements.jobStatus.dataset.status = String(status).toLowerCase();
   elements.jobMeta.textContent = id ? `job ${id} | candidates ${count}` : "нет активной задачи";
   renderSourceStats(job.SourceStats ?? job.source_stats ?? []);
+}
+
+function renderJobHistory(errorMessage = "") {
+  if (errorMessage) {
+    elements.jobHistory.innerHTML = `<p class="job-history__empty">${escapeHTML(errorMessage)}</p>`;
+    return;
+  }
+  if (state.jobHistory.length === 0) {
+    elements.jobHistory.innerHTML = `<p class="job-history__empty">история задач пустая</p>`;
+    return;
+  }
+  elements.jobHistory.innerHTML = state.jobHistory
+    .map((job) => {
+      const status = String(job.Status ?? job.status ?? "unknown");
+      const count = Number(job.CandidatesCount ?? job.candidates_count ?? 0);
+      const query = job.Query?.Text ?? job.query?.text ?? "";
+      const updatedAt = formatDate(job.UpdatedAt ?? job.updated_at ?? "");
+      const sourceStats = job.SourceStats ?? job.source_stats ?? [];
+      const sources = Array.isArray(sourceStats)
+        ? sourceStats.map(normalizeSourceStats).map((stat) => stat.sourceName).filter(Boolean).join(", ")
+        : "";
+      return `
+        <button class="job-history__item" type="button" data-job-id="${escapeHTML(job.ID ?? job.id ?? "")}">
+          <span>${escapeHTML(status)}</span>
+          <strong>${escapeHTML(query || "без запроса")}</strong>
+          <small>${count} items${sources ? ` · ${escapeHTML(sources)}` : ""}${updatedAt ? ` · ${escapeHTML(updatedAt)}` : ""}</small>
+        </button>
+      `;
+    })
+    .join("");
 }
 
 function renderSourceStats(rawStats) {

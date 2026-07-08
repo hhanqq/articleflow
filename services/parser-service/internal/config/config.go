@@ -10,6 +10,8 @@ type Config struct {
 	ServiceName        string
 	KafkaBrokers       string
 	HTTPAddr           string
+	StorageDriver      string
+	PostgresDSN        string
 	HabrBaseURL        string
 	HabrMaxAttempts    int
 	HabrRetryDelayMS   int
@@ -28,6 +30,8 @@ func Load() Config {
 		ServiceName:        "parser-service",
 		KafkaBrokers:       sharedconfig.String("KAFKA_BROKERS", "127.0.0.1:9092"),
 		HTTPAddr:           sharedconfig.String("PARSER_HTTP_ADDR", ":8081"),
+		StorageDriver:      sharedconfig.String("PARSER_STORAGE_DRIVER", "postgres"),
+		PostgresDSN:        sharedconfig.String("PARSER_POSTGRES_DSN", "postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable"),
 		HabrBaseURL:        sharedconfig.String("HABR_BASE_URL", "https://habr.com"),
 		HabrMaxAttempts:    sharedconfig.Int("HABR_MAX_ATTEMPTS", 3),
 		HabrRetryDelayMS:   sharedconfig.Int("HABR_RETRY_DELAY_MS", 500),

@@ -13,7 +13,8 @@ import (
 )
 
 type fakeJobManager struct {
-	job parserv1.ParserJob
+	job  parserv1.ParserJob
+	jobs []parserv1.ParserJob
 }
 
 func (manager fakeJobManager) StartAsync(_ context.Context, query parserv1.SearchQuery) (parserv1.ParserJob, error) {
@@ -21,11 +22,21 @@ func (manager fakeJobManager) StartAsync(_ context.Context, query parserv1.Searc
 	return manager.job, nil
 }
 
-func (manager fakeJobManager) Get(id string) (parserv1.ParserJob, bool) {
+func (manager fakeJobManager) Get(_ context.Context, id string) (parserv1.ParserJob, bool, error) {
 	if manager.job.ID == id {
-		return manager.job, true
+		return manager.job, true, nil
 	}
-	return parserv1.ParserJob{}, false
+	return parserv1.ParserJob{}, false, nil
+}
+
+func (manager fakeJobManager) List(_ context.Context, limit int) ([]parserv1.ParserJob, error) {
+	if len(manager.jobs) == 0 {
+		return nil, nil
+	}
+	if limit <= 0 || limit > len(manager.jobs) {
+		limit = len(manager.jobs)
+	}
+	return manager.jobs[:limit], nil
 }
 
 func TestJobsHandlerCreatesParserJob(t *testing.T) {
@@ -88,5 +99,32 @@ func TestJobsHandlerReturnsParserJobStatus(t *testing.T) {
 	}
 	if len(payload.Job.SourceStats) != 1 {
 		t.Fatalf("expected source stats in response, got %d", len(payload.Job.SourceStats))
+	}
+}
+
+func TestJobsHandlerListsParserJobs(t *testing.T) {
+	handler := NewJobsHandler(fakeJobManager{
+		jobs: []parserv1.ParserJob{
+			{ID: "parser-job-2", Status: parserv1.ParserJobStatusCompleted, CandidatesCount: 3},
+			{ID: "parser-job-1", Status: parserv1.ParserJobStatusFailed, Error: "vc unavailable"},
+		},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/parser/jobs?limit=1", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	var payload JobsResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(payload.Jobs) != 1 {
+		t.Fatalf("expected 1 listed job, got %d", len(payload.Jobs))
+	}
+	if payload.Jobs[0].ID != "parser-job-2" {
+		t.Fatalf("unexpected listed job id: %s", payload.Jobs[0].ID)
 	}
 }

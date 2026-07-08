@@ -71,3 +71,32 @@ func TestClientGetsParserJob(t *testing.T) {
 		t.Fatalf("expected candidates from parser-service, got %d", len(job.Candidates))
 	}
 }
+
+func TestClientListsParserJobs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/v1/parser/jobs" {
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+		}
+		if request.URL.Query().Get("limit") != "5" {
+			t.Fatalf("unexpected limit query: %s", request.URL.RawQuery)
+		}
+		_ = json.NewEncoder(response).Encode(jobsResponse{Jobs: []parserv1.ParserJob{
+			{ID: "parser-job-2", Status: parserv1.ParserJobStatusCompleted},
+			{ID: "parser-job-1", Status: parserv1.ParserJobStatusFailed},
+		}})
+	}))
+	defer server.Close()
+	client := New(server.URL, server.Client())
+
+	jobs, err := client.List(context.Background(), 5)
+
+	if err != nil {
+		t.Fatalf("list parser jobs: %v", err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("expected 2 jobs, got %d", len(jobs))
+	}
+	if jobs[0].ID != "parser-job-2" {
+		t.Fatalf("unexpected first job id: %s", jobs[0].ID)
+	}
+}

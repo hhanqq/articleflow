@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
@@ -24,6 +25,10 @@ type jobRequest struct {
 
 type jobResponse struct {
 	Job parserv1.ParserJob `json:"job"`
+}
+
+type jobsResponse struct {
+	Jobs []parserv1.ParserJob `json:"jobs"`
 }
 
 func New(baseURL string, httpClient *http.Client) *Client {
@@ -87,4 +92,27 @@ func (client *Client) Get(ctx context.Context, id string) (parserv1.ParserJob, b
 		return parserv1.ParserJob{}, false, err
 	}
 	return decoded.Job, true, nil
+}
+
+func (client *Client) List(ctx context.Context, limit int) ([]parserv1.ParserJob, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, client.baseURL+"/api/v1/parser/jobs?limit="+strconv.Itoa(limit), nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("parser-service returned status %d", response.StatusCode)
+	}
+	var decoded jobsResponse
+	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+		return nil, err
+	}
+	return decoded.Jobs, nil
 }

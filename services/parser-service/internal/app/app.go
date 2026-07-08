@@ -22,9 +22,18 @@ func New(cfg config.Config) *App {
 }
 
 func (app *App) Handler() http.Handler {
+	store, closeStore, err := newJobStore(context.Background(), app.cfg, nil)
+	if err != nil {
+		panic(err)
+	}
+	_ = closeStore
+	return app.handlerWithStore(store)
+}
+
+func (app *App) handlerWithStore(store jobs.Store) http.Handler {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
 	searchUsecase := search.NewUsecase(producer, sources.BuildParsers(app.cfg))
-	manager := jobs.NewManager(jobs.NewMemoryStore(), searchUsecase)
+	manager := jobs.NewManager(store, searchUsecase)
 
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler(app.cfg.ServiceName))
@@ -35,9 +44,14 @@ func (app *App) Handler() http.Handler {
 }
 
 func (app *App) Run(ctx context.Context) error {
+	store, closeStore, err := newJobStore(ctx, app.cfg, nil)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
 	server := &http.Server{
 		Addr:    app.cfg.HTTPAddr,
-		Handler: app.Handler(),
+		Handler: app.handlerWithStore(store),
 	}
 	errs := make(chan error, 1)
 	go func() {

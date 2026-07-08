@@ -69,6 +69,8 @@ build_service gateway-api
 start_service parser-service "$PROJECT_ROOT/services/parser-service" env \
   KAFKA_BROKERS=127.0.0.1:9092 \
   PARSER_HTTP_ADDR=:8081 \
+  PARSER_STORAGE_DRIVER=postgres \
+  PARSER_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable \
   HABR_REQUEST_DELAY_MS=500 \
   "$BIN_DIR/parser-service"
 

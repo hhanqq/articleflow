@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
@@ -59,7 +60,10 @@ func TestRunSearchJobCompletesAndStoresCandidates(t *testing.T) {
 	if completed.Candidates[0].Title != "First" {
 		t.Fatalf("unexpected first candidate: %s", completed.Candidates[0].Title)
 	}
-	stored, ok := store.FindByID(job.ID)
+	stored, ok, err := store.FindByID(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("find stored job: %v", err)
+	}
 	if !ok {
 		t.Fatal("expected stored job")
 	}
@@ -119,5 +123,70 @@ func TestStartAsyncReturnsQueuedJob(t *testing.T) {
 	}
 	if job.Status != parserv1.ParserJobStatusQueued {
 		t.Fatalf("expected queued status, got %s", job.Status)
+	}
+}
+
+func TestMemoryStoreListsJobsByUpdatedAtDescending(t *testing.T) {
+	store := NewMemoryStore()
+	_, err := store.Save(context.Background(), parserv1.ParserJob{
+		ID:        "old",
+		Status:    parserv1.ParserJobStatusCompleted,
+		UpdatedAt: time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("save old job: %v", err)
+	}
+	_, err = store.Save(context.Background(), parserv1.ParserJob{
+		ID:        "new",
+		Status:    parserv1.ParserJobStatusRunning,
+		UpdatedAt: time.Date(2026, 7, 7, 11, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("save new job: %v", err)
+	}
+	_, err = store.Save(context.Background(), parserv1.ParserJob{
+		ID:        "middle",
+		Status:    parserv1.ParserJobStatusQueued,
+		UpdatedAt: time.Date(2026, 7, 7, 10, 30, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("save middle job: %v", err)
+	}
+
+	jobs, err := store.List(context.Background(), 2)
+	if err != nil {
+		t.Fatalf("list jobs: %v", err)
+	}
+
+	if len(jobs) != 2 {
+		t.Fatalf("expected 2 jobs, got %d", len(jobs))
+	}
+	if jobs[0].ID != "new" || jobs[1].ID != "middle" {
+		t.Fatalf("expected newest jobs first, got %#v", []string{jobs[0].ID, jobs[1].ID})
+	}
+}
+
+func TestManagerListsStoredJobs(t *testing.T) {
+	store := NewMemoryStore()
+	manager := NewManager(store, fakeSearchPublisher{})
+	_, err := store.Save(context.Background(), parserv1.ParserJob{
+		ID:        "parser-job-1",
+		Status:    parserv1.ParserJobStatusCompleted,
+		UpdatedAt: time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("save job: %v", err)
+	}
+
+	jobs, err := manager.List(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("list manager jobs: %v", err)
+	}
+
+	if len(jobs) != 1 {
+		t.Fatalf("expected 1 job, got %d", len(jobs))
+	}
+	if jobs[0].ID != "parser-job-1" {
+		t.Fatalf("unexpected job id: %s", jobs[0].ID)
 	}
 }

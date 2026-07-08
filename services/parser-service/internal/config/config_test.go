@@ -14,6 +14,12 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.HTTPAddr != ":8081" {
 		t.Fatalf("unexpected HTTP addr: %s", cfg.HTTPAddr)
 	}
+	if cfg.StorageDriver != "postgres" {
+		t.Fatalf("unexpected storage driver: %s", cfg.StorageDriver)
+	}
+	if cfg.PostgresDSN == "" {
+		t.Fatal("expected default postgres dsn")
+	}
 	if cfg.HabrBaseURL != "https://habr.com" {
 		t.Fatalf("unexpected Habr base URL: %s", cfg.HabrBaseURL)
 	}

@@ -9,6 +9,7 @@ import {
   normalizeArticle,
   normalizeCandidateItem,
   normalizeJobResponse,
+  normalizeJobsResponse,
   normalizeFeedItem,
   normalizeSearchResponse,
   normalizeSourceStats,
@@ -155,6 +156,19 @@ test("normalizeJobResponse unwraps gateway job payload", () => {
 
   assert.equal(job.ID, "parser-job-1");
   assert.equal(job.Status, "queued");
+});
+
+test("normalizeJobsResponse unwraps gateway jobs history payload", () => {
+  const jobs = normalizeJobsResponse({
+    jobs: [
+      { ID: "parser-job-2", Status: "completed", CandidatesCount: 3 },
+      { ID: "parser-job-1", Status: "failed", Error: "vc unavailable" },
+    ],
+  });
+
+  assert.equal(jobs.length, 2);
+  assert.equal(jobs[0].ID, "parser-job-2");
+  assert.equal(jobs[1].Error, "vc unavailable");
 });
 
 test("normalizeSearchResponse unwraps gateway candidates", () => {

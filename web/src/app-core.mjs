@@ -119,6 +119,11 @@ export function normalizeJobResponse(raw = {}) {
   return raw.job ?? raw.Job ?? raw;
 }
 
+export function normalizeJobsResponse(raw = {}) {
+  const jobs = raw.jobs ?? raw.Jobs ?? [];
+  return Array.isArray(jobs) ? jobs : [];
+}
+
 export function normalizeSearchResponse(raw = {}) {
   const candidates = raw.candidates ?? raw.Candidates ?? [];
   return Array.isArray(candidates) ? candidates : [];
