@@ -30,6 +30,6 @@ Stage 5 is implemented: ranking-service consumes `article.discovered.v1`, publis
 
 Stage 6 is implemented: `web/` contains a dependency-free static SPA for the vertical feed, stored search, separate parser job creation/status polling, API base settings, and article reactions.
 
-Stage 7 is implemented: gateway has CORS and `/metrics`, observability has a small Prometheus-style metrics registry, Dockerfiles are available for Go services and web, and `make e2e-ranking-feed` verifies the ranking/feed runtime chain.
+Stage 7 is implemented: gateway has CORS, gateway/parser/feed/article expose `/metrics`, observability has a small Prometheus-style metrics registry and HTTP request counter middleware, Dockerfiles are available for Go services and web, `make ci` runs the fast verification gate in GitHub Actions, and `make e2e-ranking-feed` verifies the ranking/feed runtime chain locally.
 
 Feed persistence is available: feed-service can use memory storage by default or Postgres through `FEED_STORAGE_DRIVER=postgres`, backed by the `feed_items` migration.

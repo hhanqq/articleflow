@@ -109,6 +109,7 @@ Available REST endpoints:
 
 ```text
 GET  /healthz
+GET  /metrics
 GET  /api/v1/feed?limit=20
 GET  /api/v1/articles?id=<article-id>
 POST /api/v1/search
@@ -350,6 +351,7 @@ curl http://localhost:8080/api/v1/feed?limit=10
 make env
 make test
 make web-test
+make ci
 make web
 make tidy
 make tools
@@ -360,6 +362,17 @@ make e2e-article-chain
 make e2e-ranking-feed
 docker compose -f deployments/docker-compose.yml config
 docker compose -f deployments/docker-compose.yml up -d
+```
+
+`make ci` is the fast gate used by GitHub Actions: Go tests, web tests, Docker Compose config validation, and whitespace checks. Runtime e2e checks remain available through `make e2e-article-chain`, `make e2e-ranking-feed`, and `make dev-smoke`.
+
+Every HTTP service exposes Prometheus-style metrics:
+
+```text
+gateway-api      http://localhost:8080/metrics
+parser-service  http://localhost:8081/metrics
+feed-service    http://localhost:8082/metrics
+article-service http://localhost:8083/metrics
 ```
 
 Build a service image:

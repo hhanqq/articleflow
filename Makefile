@@ -7,7 +7,7 @@ export GOCACHE := $(PROJECT_ROOT)/.cache/go-build
 export GOBIN := $(PROJECT_ROOT)/.bin
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: env test web-test web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
+.PHONY: env test web-test ci web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
 
 env:
 	@mkdir -p "$(GOPATH)" "$(GOMODCACHE)" "$(GOCACHE)" "$(GOBIN)"
@@ -21,6 +21,10 @@ test: env
 
 web-test:
 	cd web && npm test
+
+ci: test web-test
+	docker compose -f deployments/docker-compose.yml config >/dev/null
+	git diff --check
 
 web:
 	cd web && npm run start
