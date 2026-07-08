@@ -77,7 +77,7 @@ func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([
 	if err != nil {
 		return nil, err
 	}
-	terms := strings.Fields(strings.ToLower(query.Text))
+	terms := meaningfulTerms(query.Text)
 	candidates := make([]parserv1.ArticleCandidate, 0, len(items))
 	for _, item := range items {
 		if !matchesTerms(item, terms) {
@@ -139,6 +139,33 @@ func matchesTerms(item rssItem, terms []string) bool {
 		}
 	}
 	return false
+}
+
+func meaningfulTerms(text string) []string {
+	seen := make(map[string]struct{})
+	rawTerms := strings.Fields(strings.ToLower(text))
+	terms := make([]string, 0, len(rawTerms))
+	for _, term := range rawTerms {
+		term = strings.Trim(term, " \t\n\r.,!?;:()[]{}\"'`«»")
+		if len([]rune(term)) < 3 {
+			continue
+		}
+		if _, ok := rssStopWords[term]; ok {
+			continue
+		}
+		if _, ok := seen[term]; ok {
+			continue
+		}
+		seen[term] = struct{}{}
+		terms = append(terms, term)
+	}
+	return terms
+}
+
+var rssStopWords = map[string]struct{}{
+	"and": {}, "for": {}, "the": {}, "with": {}, "или": {}, "как": {}, "что": {}, "для": {},
+	"это": {}, "про": {}, "при": {}, "без": {}, "под": {}, "над": {}, "его": {}, "её": {},
+	"она": {}, "они": {}, "оно": {}, "там": {}, "тут": {}, "все": {}, "всё": {},
 }
 
 func parsePublishedAt(value string) time.Time {

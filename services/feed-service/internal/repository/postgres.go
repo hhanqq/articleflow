@@ -7,6 +7,10 @@ import (
 )
 
 func BuildUpsertFeedItemQuery(event eventsv1.FeedItemScoredEvent) (string, []any) {
+	tags := event.Tags
+	if tags == nil {
+		tags = []string{}
+	}
 	query := `
 INSERT INTO feed_items (
     article_id,
@@ -38,7 +42,7 @@ ON CONFLICT (article_id) DO UPDATE SET
 		event.URL,
 		event.Title,
 		event.Summary,
-		event.Tags,
+		tags,
 		event.Score,
 		event.PublishedAt,
 		event.ScoredAt,

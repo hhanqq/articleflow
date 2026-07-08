@@ -61,3 +61,44 @@ func TestClientSearchFiltersRSSItemsByQuery(t *testing.T) {
 		t.Fatal("expected rss description as initial content")
 	}
 }
+
+func TestClientSearchIgnoresStopWordsWhenFiltering(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/rss+xml")
+		_, _ = response.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>Источник РБК рассказал о планах компании</title>
+      <link>https://vc.ru/news/2001</link>
+      <guid>vc-2001</guid>
+      <description>В компании говорят о реструктуризации.</description>
+    </item>
+    <item>
+      <title>Маршрут путешествия в Китай для предпринимателей</title>
+      <link>https://vc.ru/travel/2002</link>
+      <guid>vc-2002</guid>
+      <description>Пекин, Шанхай и деловые поездки.</description>
+    </item>
+  </channel>
+</rss>`))
+	}))
+	defer server.Close()
+	client := NewClient(ClientOptions{
+		SourceName: "vc",
+		FeedURL:    server.URL,
+		HTTPClient: server.Client(),
+	})
+
+	candidates, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "путешествие в китай", Limit: 10})
+
+	if err != nil {
+		t.Fatalf("search failed: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(candidates))
+	}
+	if candidates[0].ExternalID != "vc-2002" {
+		t.Fatalf("unexpected candidate: %s", candidates[0].ExternalID)
+	}
+}

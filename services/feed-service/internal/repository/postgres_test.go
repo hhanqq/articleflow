@@ -34,6 +34,29 @@ func TestBuildUpsertFeedItemQuery(t *testing.T) {
 	}
 }
 
+func TestBuildUpsertFeedItemQueryNormalizesNilTags(t *testing.T) {
+	event := eventsv1.FeedItemScoredEvent{
+		ArticleID:  "habr:1",
+		SourceName: "habr",
+		URL:        "https://habr.com/1",
+		Title:      "Go Kafka",
+		ScoredAt:   time.Date(2026, 7, 7, 11, 0, 0, 0, time.UTC),
+	}
+
+	_, args := BuildUpsertFeedItemQuery(event)
+
+	tags, ok := args[5].([]string)
+	if !ok {
+		t.Fatalf("expected tags arg to be []string, got %T", args[5])
+	}
+	if tags == nil {
+		t.Fatal("expected non-nil empty tags slice")
+	}
+	if len(tags) != 0 {
+		t.Fatalf("expected empty tags, got %#v", tags)
+	}
+}
+
 func TestBuildListFeedItemsQueryNormalizesLimit(t *testing.T) {
 	query, args := BuildListFeedItemsQuery(0)
 
