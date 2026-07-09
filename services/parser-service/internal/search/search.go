@@ -81,12 +81,12 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 				sourceStats.FilteredCount++
 				continue
 			}
-			key := candidateDedupKey(candidate)
-			if seenCandidates[key] {
+			keys := candidateDedupKeys(candidate)
+			if hasSeenCandidate(seenCandidates, keys) {
 				sourceStats.FilteredCount++
 				continue
 			}
-			seenCandidates[key] = true
+			markSeenCandidate(seenCandidates, keys)
 			score := candidateRelevanceScore(candidate, query.Text)
 			if score <= 0 {
 				zeroScoreCandidates = append(zeroScoreCandidates, scoredCandidate{candidate: candidate, score: score})
@@ -326,11 +326,33 @@ func normalizeCandidate(candidate parserv1.ArticleCandidate, source string, quer
 	return candidate
 }
 
-func candidateDedupKey(candidate parserv1.ArticleCandidate) string {
+func candidateDedupKeys(candidate parserv1.ArticleCandidate) []string {
+	keys := make([]string, 0, 3)
 	if candidate.URL != "" {
-		return "url:" + strings.ToLower(candidate.URL)
+		keys = append(keys, "url:"+strings.ToLower(candidate.URL))
 	}
-	return "source:" + strings.ToLower(candidate.SourceName) + ":" + strings.ToLower(candidate.ExternalID)
+	if candidate.SourceName != "" && candidate.ExternalID != "" {
+		keys = append(keys, "source:"+strings.ToLower(candidate.SourceName)+":"+strings.ToLower(candidate.ExternalID))
+	}
+	if titleKey := candidateTitleDedupKey(candidate.Title); titleKey != "" {
+		keys = append(keys, "title:"+titleKey)
+	}
+	return keys
+}
+
+func hasSeenCandidate(seen map[string]bool, keys []string) bool {
+	for _, key := range keys {
+		if seen[key] {
+			return true
+		}
+	}
+	return false
+}
+
+func markSeenCandidate(seen map[string]bool, keys []string) {
+	for _, key := range keys {
+		seen[key] = true
+	}
 }
 
 func normalizeCandidateURL(raw string) string {
@@ -339,6 +361,8 @@ func normalizeCandidateURL(raw string) string {
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return raw
 	}
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	parsed.Host = canonicalHost(strings.ToLower(parsed.Host))
 	parsed.Fragment = ""
 	values := parsed.Query()
 	for key := range values {
@@ -348,7 +372,34 @@ func normalizeCandidateURL(raw string) string {
 		}
 	}
 	parsed.RawQuery = values.Encode()
+	if parsed.Path != "/" {
+		parsed.Path = strings.TrimRight(parsed.Path, "/")
+	}
 	return parsed.String()
+}
+
+func canonicalHost(host string) string {
+	host = strings.TrimPrefix(host, "www.")
+	host = strings.TrimPrefix(host, "m.")
+	return host
+}
+
+func candidateTitleDedupKey(title string) string {
+	terms := strings.FieldsFunc(strings.ToLower(title), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	normalized := make([]string, 0, len(terms))
+	for _, term := range terms {
+		term = strings.TrimSpace(term)
+		if len([]rune(term)) < 3 {
+			continue
+		}
+		normalized = append(normalized, term)
+	}
+	if len(normalized) < 4 {
+		return ""
+	}
+	return strings.Join(normalized, " ")
 }
 
 func stableCandidateID(value string) string {

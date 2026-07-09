@@ -254,6 +254,93 @@ func TestSearchAndPublishNormalizesAndDeduplicatesCandidates(t *testing.T) {
 	}
 }
 
+func TestSearchAndPublishDeduplicatesCanonicalURLs(t *testing.T) {
+	producer := articleflowkafka.NewMemoryProducer()
+	usecase := NewUsecase(producer, []Parser{
+		fakeParser{
+			sourceName: "vc",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName: "vc",
+					URL:        "https://m.vc.ru/travel/123/?utm_source=telegram",
+					Title:      "Путешествие в Японию",
+				},
+			},
+		},
+		fakeParser{
+			sourceName: "vc_rss",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName: "vc_rss",
+					URL:        "https://vc.ru/travel/123",
+					Title:      "Путешествие в Японию",
+				},
+			},
+		},
+	})
+
+	result, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:    "путешествие япония",
+		Sources: []string{"vc", "vc_rss"},
+		Limit:   10,
+	})
+
+	if err != nil {
+		t.Fatalf("search and publish failed: %v", err)
+	}
+	if len(result.Candidates) != 1 {
+		t.Fatalf("expected 1 canonical candidate, got %d", len(result.Candidates))
+	}
+	if result.Candidates[0].URL != "https://vc.ru/travel/123" {
+		t.Fatalf("expected canonical URL, got %s", result.Candidates[0].URL)
+	}
+	if result.SourceStats[1].FilteredCount != 1 {
+		t.Fatalf("expected duplicate to be filtered in second source, got %#v", result.SourceStats[1])
+	}
+}
+
+func TestSearchAndPublishDeduplicatesSimilarTitles(t *testing.T) {
+	producer := articleflowkafka.NewMemoryProducer()
+	usecase := NewUsecase(producer, []Parser{
+		fakeParser{
+			sourceName: "vc",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName: "vc",
+					URL:        "https://vc.ru/travel/japan-budget",
+					Title:      "Как поехать в Японию: бюджет и маршрут",
+				},
+			},
+		},
+		fakeParser{
+			sourceName: "dzen",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName: "dzen",
+					URL:        "https://dzen.ru/a/japan-budget-copy",
+					Title:      "Как поехать в Японию - бюджет и маршрут",
+				},
+			},
+		},
+	})
+
+	result, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:    "поехать японию бюджет маршрут",
+		Sources: []string{"vc", "dzen"},
+		Limit:   10,
+	})
+
+	if err != nil {
+		t.Fatalf("search and publish failed: %v", err)
+	}
+	if len(result.Candidates) != 1 {
+		t.Fatalf("expected 1 title-deduplicated candidate, got %d", len(result.Candidates))
+	}
+	if result.SourceStats[1].FilteredCount != 1 {
+		t.Fatalf("expected title duplicate to be filtered in second source, got %#v", result.SourceStats[1])
+	}
+}
+
 func TestSearchAndPublishBalancesReturnedCandidatesAcrossSources(t *testing.T) {
 	producer := articleflowkafka.NewMemoryProducer()
 	usecase := NewUsecase(producer, []Parser{
