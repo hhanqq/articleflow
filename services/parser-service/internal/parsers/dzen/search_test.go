@@ -64,6 +64,42 @@ func TestSearchHTMLExtractsArticleLinksAndParsesArticles(t *testing.T) {
 	}
 }
 
+func TestSearchHTMLExtractsEmbeddedArticleURLs(t *testing.T) {
+	html := strings.NewReader(`
+		<html><body>
+			<a href="/a/visible">Видимая статья</a>
+			<script>
+				window.__STATE__ = {
+					"items": [
+						{"url":"https://dzen.ru/a/embedded-first?utm_source=search"},
+						{"url":"https:\/\/dzen.ru\/media\/travel\/embedded-second?clid=1"},
+						{"url":"https://dzen.ru/media/zen/login?repostId=service"}
+					]
+				};
+			</script>
+		</body></html>
+	`)
+
+	urls, err := ParseSearchHTML(html, "https://dzen.ru/search?query=Турция", "https://dzen.ru", 10)
+	if err != nil {
+		t.Fatalf("parse search html: %v", err)
+	}
+
+	expected := []string{
+		"https://dzen.ru/a/visible",
+		"https://dzen.ru/a/embedded-first",
+		"https://dzen.ru/media/travel/embedded-second",
+	}
+	if len(urls) != len(expected) {
+		t.Fatalf("expected %d URLs, got %d: %#v", len(expected), len(urls), urls)
+	}
+	for index, expectedURL := range expected {
+		if urls[index] != expectedURL {
+			t.Fatalf("unexpected URL at %d: got %s, want %s", index, urls[index], expectedURL)
+		}
+	}
+}
+
 func TestSearchFetchesArticlePagesConcurrently(t *testing.T) {
 	var inFlight int64
 	var maxInFlight int64
