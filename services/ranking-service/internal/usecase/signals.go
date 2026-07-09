@@ -11,15 +11,19 @@ import (
 )
 
 type SignalStore struct {
-	mu          sync.RWMutex
-	articleTags map[string][]string
-	tagWeights  map[string]float64
+	mu             sync.RWMutex
+	articleTags    map[string][]string
+	articleSources map[string]string
+	tagWeights     map[string]float64
+	sourceWeights  map[string]float64
 }
 
 func NewSignalStore() *SignalStore {
 	return &SignalStore{
-		articleTags: make(map[string][]string),
-		tagWeights:  make(map[string]float64),
+		articleTags:    make(map[string][]string),
+		articleSources: make(map[string]string),
+		tagWeights:     make(map[string]float64),
+		sourceWeights:  make(map[string]float64),
 	}
 }
 
@@ -28,13 +32,15 @@ func (store *SignalStore) RememberArticle(item feedv1.FeedItem) {
 		return
 	}
 	tags := normalizedTags(item)
-	if len(tags) == 0 {
-		return
-	}
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	store.articleTags[item.ArticleID] = tags
+	if len(tags) > 0 {
+		store.articleTags[item.ArticleID] = tags
+	}
+	if source := normalizedSource(item.SourceName); source != "" {
+		store.articleSources[item.ArticleID] = source
+	}
 }
 
 func (store *SignalStore) RecordReaction(event eventsv1.UserReactionCreatedEvent) error {
@@ -51,12 +57,16 @@ func (store *SignalStore) RecordReaction(event eventsv1.UserReactionCreatedEvent
 	for _, tag := range store.articleTags[event.ArticleID] {
 		store.tagWeights[tag] += weight
 	}
+	if source := store.articleSources[event.ArticleID]; source != "" {
+		store.sourceWeights[source] += weight / 2
+	}
 	return nil
 }
 
 func (store *SignalStore) ApplyToScore(baseScore float64, item feedv1.FeedItem) float64 {
 	tags := normalizedTags(item)
-	if len(tags) == 0 {
+	source := normalizedSource(item.SourceName)
+	if len(tags) == 0 && source == "" {
 		return baseScore
 	}
 
@@ -65,6 +75,9 @@ func (store *SignalStore) ApplyToScore(baseScore float64, item feedv1.FeedItem) 
 	score := baseScore
 	for _, tag := range tags {
 		score += store.tagWeights[tag]
+	}
+	if source != "" {
+		score += store.sourceWeights[source]
 	}
 	if score < 0 {
 		return 0

@@ -64,3 +64,31 @@ func TestRankDiscoveredAddsScoreReasons(t *testing.T) {
 		t.Fatal("expected score reasons")
 	}
 }
+
+func TestRankDiversifiesTopResultsAcrossSources(t *testing.T) {
+	ranker := NewRanker()
+	items := []feedv1.FeedItem{
+		{ArticleID: "habr-1", SourceName: "habr", Title: "Go Kafka deep dive", Tags: []string{"go", "kafka"}},
+		{ArticleID: "habr-2", SourceName: "habr", Title: "Go Kafka production", Tags: []string{"go", "kafka"}},
+		{ArticleID: "dzen-1", SourceName: "dzen", Title: "Go Kafka обзор", Tags: []string{"go", "kafka"}},
+	}
+
+	ranked := ranker.Rank(parserv1.SearchQuery{Text: "go kafka"}, items)
+
+	if len(ranked) != 3 {
+		t.Fatalf("expected 3 ranked items, got %d", len(ranked))
+	}
+	if ranked[0].SourceName == ranked[1].SourceName {
+		t.Fatalf("expected diversified top results, got sources %s and %s", ranked[0].SourceName, ranked[1].SourceName)
+	}
+	hasDiversityReason := false
+	for _, reason := range ranked[1].ScoreReasons {
+		if reason == "source_diversity" {
+			hasDiversityReason = true
+			break
+		}
+	}
+	if !hasDiversityReason {
+		t.Fatalf("expected source_diversity reason, got %#v", ranked[1].ScoreReasons)
+	}
+}

@@ -72,3 +72,38 @@ func TestSignalStorePenalizesArticlesWithNegativeReactionTags(t *testing.T) {
 		t.Fatalf("expected penalty below base score, got %f", score)
 	}
 }
+
+func TestSignalStoreBoostsPreferredSources(t *testing.T) {
+	signals := NewSignalStore()
+	signals.RememberArticle(feedv1.FeedItem{
+		ArticleID:  "dzen:travel",
+		SourceName: "dzen",
+		Title:      "Маршрут по Турции",
+	})
+
+	err := signals.RecordReaction(eventsv1.UserReactionCreatedEvent{
+		UserID:    "reader-1",
+		ArticleID: "dzen:travel",
+		Type:      string(userv1.ReactionSave),
+		CreatedAt: time.Date(2026, 7, 8, 10, 0, 0, 0, time.UTC),
+	})
+
+	if err != nil {
+		t.Fatalf("record reaction: %v", err)
+	}
+	base := 10.0
+	boosted := signals.ApplyToScore(base, feedv1.FeedItem{
+		ArticleID:  "dzen:next",
+		SourceName: "dzen",
+		Title:      "Новая статья без тегов",
+	})
+	neutral := signals.ApplyToScore(base, feedv1.FeedItem{
+		ArticleID:  "habr:next",
+		SourceName: "habr",
+		Title:      "Новая статья без тегов",
+	})
+
+	if boosted <= neutral {
+		t.Fatalf("expected source boost, got boosted=%f neutral=%f", boosted, neutral)
+	}
+}

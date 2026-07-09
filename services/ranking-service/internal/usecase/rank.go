@@ -36,7 +36,7 @@ func (ranker *Ranker) Rank(query parserv1.SearchQuery, items []feedv1.FeedItem) 
 	sort.SliceStable(ranked, func(i, j int) bool {
 		return ranked[i].Score > ranked[j].Score
 	})
-	return ranked
+	return diversifyRankedItems(ranked)
 }
 
 func (ranker *Ranker) RankDiscovered(event eventsv1.ArticleDiscoveredEvent) eventsv1.FeedItemScoredEvent {
@@ -117,6 +117,44 @@ func compactReasons(reasons []string) []string {
 		compacted = append(compacted, reason)
 	}
 	return compacted
+}
+
+func diversifyRankedItems(items []feedv1.FeedItem) []feedv1.FeedItem {
+	if len(items) < 3 {
+		return items
+	}
+	diversified := append([]feedv1.FeedItem(nil), items...)
+	for index := 1; index < len(diversified); index++ {
+		previousSource := normalizedSource(diversified[index-1].SourceName)
+		currentSource := normalizedSource(diversified[index].SourceName)
+		if previousSource == "" || currentSource == "" || previousSource != currentSource {
+			continue
+		}
+		replacementIndex := -1
+		for candidateIndex := index + 1; candidateIndex < len(diversified); candidateIndex++ {
+			candidateSource := normalizedSource(diversified[candidateIndex].SourceName)
+			if candidateSource == "" || candidateSource == previousSource {
+				continue
+			}
+			if diversified[candidateIndex].Score+5 < diversified[index].Score {
+				continue
+			}
+			replacementIndex = candidateIndex
+			break
+		}
+		if replacementIndex == -1 {
+			continue
+		}
+		replacement := diversified[replacementIndex]
+		replacement.ScoreReasons = compactReasons(append(replacement.ScoreReasons, "source_diversity"))
+		copy(diversified[index+1:replacementIndex+1], diversified[index:replacementIndex])
+		diversified[index] = replacement
+	}
+	return diversified
+}
+
+func normalizedSource(source string) string {
+	return strings.ToLower(strings.TrimSpace(source))
 }
 
 func articleID(event eventsv1.ArticleDiscoveredEvent) string {
