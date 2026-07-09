@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
+	"github.com/hanq/articleflow/services/parser-service/internal/parsers/dzen"
 	"github.com/hanq/articleflow/services/parser-service/internal/parsers/habr"
 	"github.com/hanq/articleflow/services/parser-service/internal/parsers/rssfeed"
 	"github.com/hanq/articleflow/services/parser-service/internal/parsers/vc"
@@ -45,6 +46,10 @@ func BuildRegistry(cfg config.Config) Registry {
 		BaseURL:     cfg.VCBaseURL,
 		Language:    "ru",
 		URLSearcher: buildVCURLSearcher(cfg),
+	}))
+	add(SourceInfo{Name: "dzen", DisplayName: "Dzen", Kind: "html"}, dzen.NewClient(dzen.ClientOptions{
+		BaseURL:  cfg.DzenBaseURL,
+		Language: "ru",
 	}))
 	if cfg.VCRSSFeedURL != "" {
 		add(SourceInfo{Name: "vc_rss", DisplayName: "vc.ru RSS", Kind: "rss"}, rssfeed.NewClient(rssfeed.ClientOptions{

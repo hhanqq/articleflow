@@ -63,9 +63,7 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 			sourceStats.Status = parserv1.SourceStatusFailed
 			sourceStats.Error = err.Error()
 			stats = append(stats, sourceStats)
-			if publishErr := usecase.publishFailure(ctx, source, query, err); publishErr != nil {
-				return parserv1.SearchResult{SourceStats: stats}, publishErr
-			}
+			_ = usecase.publishFailure(ctx, source, query, err)
 			lastErr = err
 			continue
 		}

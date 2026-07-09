@@ -22,6 +22,7 @@ type Config struct {
 	GoogleSearchAPIKey string
 	GoogleSearchCX     string
 	BingSearchAPIKey   string
+	DzenBaseURL        string
 	DzenRSSFeedURL     string
 	YandexRSSFeedURL   string
 	CustomRSSSources   string
@@ -45,6 +46,7 @@ func Load() Config {
 		GoogleSearchAPIKey: sharedconfig.String("GOOGLE_SEARCH_API_KEY", ""),
 		GoogleSearchCX:     sharedconfig.String("GOOGLE_SEARCH_CX", ""),
 		BingSearchAPIKey:   sharedconfig.String("BING_SEARCH_API_KEY", ""),
+		DzenBaseURL:        sharedconfig.String("DZEN_BASE_URL", "https://dzen.ru"),
 		DzenRSSFeedURL:     sharedconfig.String("DZEN_RSS_FEED_URL", ""),
 		YandexRSSFeedURL:   sharedconfig.String("YANDEX_RSS_FEED_URL", ""),
 		CustomRSSSources:   sharedconfig.String("CUSTOM_RSS_SOURCES", ""),
@@ -73,7 +75,7 @@ func (cfg Config) BrokerList() []string {
 func (cfg Config) RSSSourceList() []RSSSource {
 	sources := make([]RSSSource, 0)
 	if strings.TrimSpace(cfg.DzenRSSFeedURL) != "" {
-		sources = append(sources, RSSSource{Name: "dzen", DisplayName: "Dzen", URL: strings.TrimSpace(cfg.DzenRSSFeedURL)})
+		sources = append(sources, RSSSource{Name: "dzen_rss", DisplayName: "Dzen RSS", URL: strings.TrimSpace(cfg.DzenRSSFeedURL)})
 	}
 	if strings.TrimSpace(cfg.YandexRSSFeedURL) != "" {
 		sources = append(sources, RSSSource{Name: "yandex", DisplayName: "Yandex", URL: strings.TrimSpace(cfg.YandexRSSFeedURL)})

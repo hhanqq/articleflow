@@ -38,6 +38,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.VCSearchProvider != "discovery" {
 		t.Fatalf("unexpected vc search provider: %s", cfg.VCSearchProvider)
 	}
+	if cfg.DzenBaseURL != "https://dzen.ru" {
+		t.Fatalf("unexpected dzen base URL: %s", cfg.DzenBaseURL)
+	}
 }
 
 func TestBrokerListSplitsCommaSeparatedBrokers(t *testing.T) {
@@ -65,7 +68,7 @@ func TestRSSSourceListParsesConfiguredSources(t *testing.T) {
 	if len(sources) != 3 {
 		t.Fatalf("expected 3 rss sources, got %d", len(sources))
 	}
-	if sources[0].Name != "dzen" || sources[0].DisplayName != "Dzen" || sources[0].URL != "https://dzen.example/rss" {
+	if sources[0].Name != "dzen_rss" || sources[0].DisplayName != "Dzen RSS" || sources[0].URL != "https://dzen.example/rss" {
 		t.Fatalf("unexpected first source: %#v", sources[0])
 	}
 	if sources[1].Name != "yandex" || sources[1].DisplayName != "Yandex" || sources[1].URL != "https://yandex.example/rss" {

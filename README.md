@@ -77,7 +77,7 @@ deployments/postgres/init/002_articles.sql
 ```
 
 Stage 3 parser runtime search is available through `services/parser-service/cmd/search-habr` and parser-service HTTP jobs.
-It searches Habr with full article HTML parsing. Parser-service also has a source registry with `vc`, `vc_rss`, and custom RSS sources configured through `CUSTOM_RSS_SOURCES`.
+It searches Habr with full article HTML parsing. Parser-service also has a source registry with `vc`, `dzen`, `vc_rss`, optional RSS sources, and custom RSS sources configured through `CUSTOM_RSS_SOURCES`.
 The current `vc` implementation searches the full vc.ru archive through the same public discovery API used by `https://vc.ru/discovery?q=...`, then opens each public article HTML page and extracts structured article data from `window.__INITIAL_STATE__`, JSON-LD, and meta tags. If discovery returns no URLs or is temporarily unavailable, `vc` falls back to public RSS discovery. Google/Bing site search providers remain optional alternatives. `vc_rss` is always the explicit RSS-only source.
 Parser errors publish `parser.job.failed.v1`; multi-source jobs keep successful sources when another source is temporarily unavailable. Multi-source parser job responses, stored article search, and ranked feed reads are source-balanced, so one noisy source cannot fill the whole response limit before other sources get a chance.
 
@@ -195,7 +195,8 @@ VC_SEARCH_PROVIDER=discovery
 GOOGLE_SEARCH_API_KEY=
 GOOGLE_SEARCH_CX=
 BING_SEARCH_API_KEY=
-CUSTOM_RSS_SOURCES=dzen=https://dzen.ru/rss,yandex=https://news.yandex.ru/index.rss
+DZEN_BASE_URL=https://dzen.ru
+CUSTOM_RSS_SOURCES=my_blog=https://example.com/feed.xml
 ARTICLE_STORAGE_DRIVER=postgres
 ARTICLE_POSTGRES_DSN=postgres://articleflow:articleflow@localhost:5432/articleflow?sslmode=disable
 FEED_STORAGE_DRIVER=postgres
@@ -257,7 +258,7 @@ curl -X POST http://localhost:8081/api/v1/parser/jobs \
   -d '{"query":"go kafka","sources":[],"limit":5}'
 ```
 
-If `sources` is omitted or empty, parser-service runs every registered parser. Built-in source names are `habr`, `vc`, and `vc_rss`; custom RSS entries use the names from `CUSTOM_RSS_SOURCES`. Returned candidates are interleaved by source before applying `limit`, which keeps Habr, vc.ru, RSS, and future sources visible in the same job response.
+If `sources` is omitted or empty, parser-service runs every registered parser. Built-in source names are `habr`, `vc`, `dzen`, and `vc_rss`; optional RSS entries such as `dzen_rss` and `yandex` appear when feed URLs are configured, and custom RSS entries use the names from `CUSTOM_RSS_SOURCES`. Returned candidates are interleaved by source before applying `limit`, which keeps Habr, vc.ru, Dzen, RSS, and future sources visible in the same job response.
 
 By default `vc` searches the full vc.ru archive through the public discovery endpoint:
 
@@ -488,14 +489,16 @@ Goose runs as the `migrations` compose service before application services start
 
 ## Dzen And Yandex Sources
 
-`dzen` and `yandex` are currently RSS/Atom-backed sources, not full-site search parsers. They are registered only when a concrete feed URL is configured:
+`dzen` is a built-in HTML search source. It requests `https://dzen.ru/search?query=<query>`, extracts article links such as `/a/...` and `/media/...`, then parses article pages through JSON-LD, meta tags, and `<article>` text. In current live checks, direct server-side Dzen search redirects to Yandex/VK SSO; parser-service reports that as a failed `dzen` source stat instead of masking it as an infrastructure error.
+
+RSS/Atom sources are still available separately:
 
 ```text
 DZEN_RSS_FEED_URL=https://...
 YANDEX_RSS_FEED_URL=https://...
 ```
 
-You can also add arbitrary RSS/Atom feeds through `CUSTOM_RSS_SOURCES`, for example `dzen=https://dzen.ru/rss,yandex=https://news.yandex.ru/index.rss`. Full query search across Dzen pages still needs a dedicated parser/source adapter.
+`DZEN_RSS_FEED_URL` registers `dzen_rss`, while `YANDEX_RSS_FEED_URL` registers `yandex`. You can also add arbitrary RSS/Atom feeds through `CUSTOM_RSS_SOURCES`, for example `my_blog=https://example.com/feed.xml`.
 
 Logs are written to `/tmp/articleflow-dev`.
 

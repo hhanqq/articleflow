@@ -17,6 +17,14 @@ type fakeParser struct {
 	err        error
 }
 
+type failingProducer struct {
+	err error
+}
+
+func (producer failingProducer) Publish(context.Context, articleflowkafka.Message) error {
+	return producer.err
+}
+
 func (parser fakeParser) SourceName() string {
 	return parser.sourceName
 }
@@ -117,6 +125,29 @@ func TestSearchAndPublishPublishesFailureEvent(t *testing.T) {
 	}
 	if event.Query != "go kafka" {
 		t.Fatalf("unexpected query: %s", event.Query)
+	}
+}
+
+func TestSearchAndPublishDoesNotMaskParserErrorWhenFailureEventPublishFails(t *testing.T) {
+	parserErr := errors.New("dzen search redirected to auth")
+	usecase := NewUsecase(failingProducer{err: errors.New("unknown kafka topic")}, []Parser{
+		fakeParser{sourceName: "dzen", err: parserErr},
+	})
+
+	result, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:    "Турция",
+		Sources: []string{"dzen"},
+		Limit:   10,
+	})
+
+	if !errors.Is(err, parserErr) {
+		t.Fatalf("expected parser error, got %v", err)
+	}
+	if len(result.SourceStats) != 1 {
+		t.Fatalf("expected source stats, got %d", len(result.SourceStats))
+	}
+	if result.SourceStats[0].Error != parserErr.Error() {
+		t.Fatalf("expected source error in stats, got %#v", result.SourceStats[0])
 	}
 }
 
