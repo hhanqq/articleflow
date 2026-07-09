@@ -1,6 +1,19 @@
 # Articleflow Roadmap
 
-## Seven implementation stages
+## Product stages
+
+1. Feed refill: query feed reads from the article DB first, then starts parser jobs in the background when the stored pool is thin.
+2. Cursor pagination: feed APIs expose cursor tokens for scrolling; the first implementation uses `offset:N` tokens.
+3. Source strategy stats: every source reports the strategy used, such as HTML search, HTML/JSON search, or RSS fallback.
+4. Anti-duplicates and canonical quality: canonical URLs, similar titles, and source aliases prevent duplicate feed cards.
+5. Ranking v2: query relevance, freshness, source diversity, user signals, and explicit score reasons.
+6. Personalization: user reactions and future opens/skips/saves influence tag and source weights.
+7. UI product feed: vertical scrolling feed, compact controls, refill status, and source diagnostics.
+8. Scheduler and background ingestion: recurring parser jobs keep common topics and configured sources warm.
+9. Observability: parser/source latency, accepted/filtered counts, feed latency, Kafka lag, and error dashboards.
+10. Production hardening: env templates, rate limits, cache, migrations, load limits, and graceful source degradation.
+
+## Historical implementation stages
 
 1. Runtime service wiring: connect parser, Kafka, article-service consumers, env config, graceful shutdown.
 2. Postgres persistence: repositories, migrations, runtime storage selection, health checks.
@@ -33,3 +46,12 @@ Stage 6 is implemented: `web/` contains a dependency-free static SPA for the ver
 Stage 7 is implemented: gateway has CORS, gateway/parser/feed/article expose `/metrics`, observability has a small Prometheus-style metrics registry and HTTP request counter middleware, Dockerfiles are available for Go services and web, `make ci` runs the fast verification gate in GitHub Actions, and `make e2e-ranking-feed` verifies the ranking/feed runtime chain locally.
 
 Feed persistence is available: feed-service can use memory storage by default or Postgres through `FEED_STORAGE_DRIVER=postgres`, backed by the `feed_items` migration.
+
+## Current product focus
+
+The active product track is stages 2, 5, 6, and 8:
+
+- Stage 2 adds cursor pagination to query feed responses so the UI can scroll without offset-only behavior.
+- Stage 5 improves ranking with freshness, relevance, source diversity, and visible score reasons.
+- Stage 6 extends personalization through reaction-derived tag/source weights.
+- Stage 8 adds background ingestion scheduling so parser jobs can warm the shared article pool without a user click.
