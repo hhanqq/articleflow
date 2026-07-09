@@ -22,7 +22,11 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 	metrics.Inc("articleflow_gateway_info")
 	mux.Handle("/healthz", NewHealthHandler(dependencies.ServiceName))
 	mux.Handle("/metrics", observability.NewPrometheusHandler(dependencies.ServiceName, metrics))
-	mux.Handle("/api/v1/feed", NewFeedHandler(dependencies.FeedProvider))
+	mux.Handle("/api/v1/feed", NewFeedHandlerWithRefill(FeedHandlerDependencies{
+		FeedProvider:    dependencies.FeedProvider,
+		SearchProvider:  dependencies.SearchProvider,
+		ParserJobClient: dependencies.ParserJobClient,
+	}))
 	mux.Handle("/api/v1/articles", NewArticleHandler(dependencies.ArticleProvider))
 	mux.Handle("/api/v1/search", NewSearchHandler(dependencies.SearchProvider))
 	mux.Handle("/api/v1/search/sources", NewSearchSourcesHandler(dependencies.ParserSourceClient))

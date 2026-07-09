@@ -1,28 +1,175 @@
 package httptransport
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
+	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
 
 type FeedProvider interface {
 	List(limit int) []feedv1.FeedItem
 }
 
+type FeedSearchProvider interface {
+	Search(query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error)
+}
+
+type FeedParserJobClient interface {
+	StartAsync(ctx context.Context, query parserv1.SearchQuery) (parserv1.ParserJob, error)
+}
+
+type FeedHandlerDependencies struct {
+	FeedProvider    FeedProvider
+	SearchProvider  FeedSearchProvider
+	ParserJobClient FeedParserJobClient
+	RefillMinItems  int
+	RefillLimit     int
+}
+
 type FeedResponse struct {
-	Items []feedv1.FeedItem `json:"items"`
+	Items         []feedv1.FeedItem   `json:"items"`
+	Mode          string              `json:"mode,omitempty"`
+	ReturnedCount int                 `json:"returned_count"`
+	RefillStarted bool                `json:"refill_started,omitempty"`
+	RefillJob     *parserv1.ParserJob `json:"refill_job,omitempty"`
 }
 
 func NewFeedHandler(provider FeedProvider) http.Handler {
+	return NewFeedHandlerWithRefill(FeedHandlerDependencies{FeedProvider: provider})
+}
+
+func NewFeedHandlerWithRefill(dependencies FeedHandlerDependencies) http.Handler {
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		limit := parseLimit(request)
+		queryText := strings.TrimSpace(request.URL.Query().Get("query"))
+		if queryText != "" && dependencies.SearchProvider != nil {
+			handleQueryFeed(response, request, dependencies, queryText, limit)
+			return
+		}
+		items := dependencies.FeedProvider.List(limit)
 		response.Header().Set("Content-Type", "application/json")
 		response.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(response).Encode(FeedResponse{Items: provider.List(limit)})
+		_ = json.NewEncoder(response).Encode(FeedResponse{
+			Items:         items,
+			Mode:          "default",
+			ReturnedCount: len(items),
+		})
 	})
+}
+
+func handleQueryFeed(response http.ResponseWriter, request *http.Request, dependencies FeedHandlerDependencies, queryText string, limit int) {
+	query := parserv1.SearchQuery{
+		Text:    queryText,
+		Sources: parseCSVQueryValues(request, "sources"),
+		Limit:   limit,
+	}.Normalize()
+	candidates, err := dependencies.SearchProvider.Search(query)
+	if err != nil {
+		http.Error(response, "feed search failed", http.StatusBadGateway)
+		return
+	}
+	items := feedItemsFromCandidates(candidates)
+	payload := FeedResponse{
+		Items:         items,
+		Mode:          "query",
+		ReturnedCount: len(items),
+	}
+	if shouldStartRefill(request, dependencies, len(items), limit) {
+		refillQuery := query
+		refillQuery.Limit = refillLimit(dependencies.RefillLimit, limit)
+		job, err := dependencies.ParserJobClient.StartAsync(request.Context(), refillQuery.Normalize())
+		if err == nil {
+			payload.RefillStarted = true
+			payload.RefillJob = &job
+		}
+	}
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(response).Encode(payload)
+}
+
+func shouldStartRefill(request *http.Request, dependencies FeedHandlerDependencies, itemCount int, limit int) bool {
+	if dependencies.ParserJobClient == nil {
+		return false
+	}
+	rawRefill := strings.ToLower(strings.TrimSpace(request.URL.Query().Get("refill")))
+	if rawRefill != "true" && rawRefill != "1" && rawRefill != "yes" {
+		return false
+	}
+	minItems := dependencies.RefillMinItems
+	if minItems <= 0 {
+		minItems = limit / 2
+	}
+	if minItems <= 0 {
+		minItems = 10
+	}
+	return itemCount < minItems
+}
+
+func refillLimit(configured int, feedLimit int) int {
+	if configured > 0 {
+		if configured > 100 {
+			return 100
+		}
+		return configured
+	}
+	limit := feedLimit * 5
+	if limit < 80 {
+		limit = 80
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return limit
+}
+
+func feedItemsFromCandidates(candidates []parserv1.ArticleCandidate) []feedv1.FeedItem {
+	items := make([]feedv1.FeedItem, 0, len(candidates))
+	for _, candidate := range candidates {
+		items = append(items, feedv1.FeedItem{
+			ArticleID:   feedArticleID(candidate),
+			Title:       candidate.Title,
+			Summary:     candidate.Summary,
+			SourceName:  candidate.SourceName,
+			URL:         candidate.URL,
+			Tags:        append([]string(nil), candidate.Tags...),
+			PublishedAt: candidate.PublishedAt,
+		})
+	}
+	return items
+}
+
+func feedArticleID(candidate parserv1.ArticleCandidate) string {
+	if candidate.SourceName != "" && candidate.ExternalID != "" {
+		return candidate.SourceName + ":" + candidate.ExternalID
+	}
+	return candidate.URL
+}
+
+func parseCSVQueryValues(request *http.Request, key string) []string {
+	rawValues := request.URL.Query()[key]
+	values := make([]string, 0, len(rawValues))
+	seen := make(map[string]bool)
+	for _, rawValue := range rawValues {
+		for _, part := range strings.Split(rawValue, ",") {
+			value := strings.TrimSpace(part)
+			if value == "" || seen[value] {
+				continue
+			}
+			seen[value] = true
+			values = append(values, value)
+		}
+	}
+	return values
 }
 
 func parseLimit(request *http.Request) int {
