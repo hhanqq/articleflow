@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
@@ -71,34 +72,82 @@ func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([
 	if err != nil {
 		return nil, err
 	}
+	return client.fetchCandidates(ctx, urls, query.Limit), nil
+}
+
+func (client *Client) fetchCandidates(ctx context.Context, urls []string, limit int) []parserv1.ArticleCandidate {
+	if len(urls) == 0 {
+		return nil
+	}
+	workers := minInt(4, len(urls))
+	type job struct {
+		index int
+		url   string
+	}
+	type result struct {
+		index     int
+		candidate parserv1.ArticleCandidate
+		ok        bool
+	}
+	jobs := make(chan job)
+	results := make(chan result, len(urls))
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for item := range jobs {
+				candidate, ok := client.fetchCandidate(ctx, item.url)
+				results <- result{index: item.index, candidate: candidate, ok: ok}
+			}
+		}()
+	}
+	for index, articleURL := range urls {
+		jobs <- job{index: index, url: articleURL}
+	}
+	close(jobs)
+	wg.Wait()
+	close(results)
+
+	ordered := make([]result, len(urls))
+	for item := range results {
+		ordered[item.index] = item
+	}
 	candidates := make([]parserv1.ArticleCandidate, 0, len(urls))
-	for _, articleURL := range urls {
-		articleBody, _, err := client.get(ctx, client.fetchURL(articleURL))
-		if err != nil {
+	for _, item := range ordered {
+		if !item.ok {
 			continue
 		}
-		article, parseErr := ParseArticleHTML(articleBody, articleURL)
-		closeErr := articleBody.Close()
-		if parseErr != nil || closeErr != nil {
-			continue
-		}
-		candidates = append(candidates, parserv1.ArticleCandidate{
-			SourceName:  SourceName,
-			ExternalID:  article.ExternalID,
-			URL:         article.URL,
-			Title:       article.Title,
-			Summary:     article.Summary,
-			Content:     article.Content,
-			Author:      article.Author,
-			Tags:        article.Tags,
-			Language:    firstNonEmpty(article.Language, client.language),
-			PublishedAt: article.PublishedAt,
-		})
-		if query.Limit > 0 && len(candidates) >= query.Limit {
+		candidates = append(candidates, item.candidate)
+		if limit > 0 && len(candidates) >= limit {
 			break
 		}
 	}
-	return candidates, nil
+	return candidates
+}
+
+func (client *Client) fetchCandidate(ctx context.Context, articleURL string) (parserv1.ArticleCandidate, bool) {
+	articleBody, _, err := client.get(ctx, client.fetchURL(articleURL))
+	if err != nil {
+		return parserv1.ArticleCandidate{}, false
+	}
+	article, parseErr := ParseArticleHTML(articleBody, articleURL)
+	closeErr := articleBody.Close()
+	if parseErr != nil || closeErr != nil {
+		return parserv1.ArticleCandidate{}, false
+	}
+	return parserv1.ArticleCandidate{
+		SourceName:  SourceName,
+		ExternalID:  article.ExternalID,
+		URL:         article.URL,
+		Title:       article.Title,
+		Summary:     article.Summary,
+		Content:     article.Content,
+		Author:      article.Author,
+		Tags:        article.Tags,
+		Language:    firstNonEmpty(article.Language, client.language),
+		PublishedAt: article.PublishedAt,
+	}, true
 }
 
 func (client *Client) fetchURL(articleURL string) string {
@@ -127,7 +176,9 @@ func (client *Client) get(ctx context.Context, requestURL string) (io.ReadCloser
 		return nil, "", err
 	}
 	request.Header.Set("Accept", "text/html,application/xhtml+xml")
-	request.Header.Set("User-Agent", "Mozilla/5.0 articleflow-parser/0.1")
+	request.Header.Set("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.8")
+	request.Header.Set("Cookie", "zen_sso_checked=1; zen_vk_sso_checked=1")
+	request.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36 articleflow-parser/0.1")
 	response, err := client.client.Do(request)
 	if err != nil {
 		return nil, "", err
@@ -144,6 +195,13 @@ func (client *Client) get(ctx context.Context, requestURL string) (io.ReadCloser
 		return nil, finalURL, fmt.Errorf("GET %s returned status %d", requestURL, response.StatusCode)
 	}
 	return response.Body, finalURL, nil
+}
+
+func minInt(left int, right int) int {
+	if left < right {
+		return left
+	}
+	return right
 }
 
 func isAuthRedirect(finalURL string) bool {

@@ -4,7 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
@@ -15,6 +18,12 @@ func TestSearchHTMLExtractsArticleLinksAndParsesArticles(t *testing.T) {
 		case "/search":
 			if request.URL.Query().Get("query") != "Турция" {
 				t.Fatalf("unexpected query: %s", request.URL.RawQuery)
+			}
+			if !strings.Contains(request.Header.Get("Cookie"), "zen_sso_checked=1") {
+				t.Fatalf("expected dzen sso cookie, got %q", request.Header.Get("Cookie"))
+			}
+			if !strings.Contains(request.Header.Get("Cookie"), "zen_vk_sso_checked=1") {
+				t.Fatalf("expected dzen vk sso cookie, got %q", request.Header.Get("Cookie"))
 			}
 			_, _ = response.Write([]byte(`
 				<html><body>
@@ -48,6 +57,51 @@ func TestSearchHTMLExtractsArticleLinksAndParsesArticles(t *testing.T) {
 	}
 	if candidates[1].URL != "https://dzen.ru/media/travel/second" {
 		t.Fatalf("unexpected second URL: %s", candidates[1].URL)
+	}
+}
+
+func TestSearchFetchesArticlePagesConcurrently(t *testing.T) {
+	var inFlight int64
+	var maxInFlight int64
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/search":
+			_, _ = response.Write([]byte(`
+				<html><body>
+					<a href="/a/first">Первый материал</a>
+					<a href="/a/second">Второй материал</a>
+				</body></html>
+			`))
+		case "/a/first", "/a/second":
+			current := atomic.AddInt64(&inFlight, 1)
+			for {
+				observed := atomic.LoadInt64(&maxInFlight)
+				if current <= observed || atomic.CompareAndSwapInt64(&maxInFlight, observed, current) {
+					break
+				}
+			}
+			time.Sleep(150 * time.Millisecond)
+			atomic.AddInt64(&inFlight, -1)
+			_, _ = response.Write([]byte(articleHTML("Турция "+request.URL.Path, "Описание", "https://dzen.ru"+request.URL.Path)))
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+	client := NewClient(ClientOptions{BaseURL: server.URL, PublicBaseURL: "https://dzen.ru", HTTPClient: server.Client()})
+
+	startedAt := time.Now()
+	candidates, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "Турция", Limit: 2}.Normalize())
+	elapsed := time.Since(startedAt)
+
+	if err != nil {
+		t.Fatalf("search dzen: %v", err)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("expected 2 candidates, got %d", len(candidates))
+	}
+	if atomic.LoadInt64(&maxInFlight) < 2 {
+		t.Fatalf("expected concurrent article fetches, max in-flight was %d, elapsed %s", maxInFlight, elapsed)
 	}
 }
 
