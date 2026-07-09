@@ -89,6 +89,7 @@ export function buildSelectedSources({ allSelected, selected }) {
 export function normalizeSourceStats(raw = {}) {
   return {
     sourceName: String(raw.SourceName ?? raw.source_name ?? ""),
+    strategy: String(raw.Strategy ?? raw.strategy ?? ""),
     status: String(raw.Status ?? raw.status ?? ""),
     foundCount: Number(raw.FoundCount ?? raw.found_count ?? 0),
     acceptedCount: Number(raw.AcceptedCount ?? raw.accepted_count ?? 0),

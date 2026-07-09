@@ -13,6 +13,7 @@ import (
 
 type fakeParser struct {
 	sourceName string
+	strategy   string
 	candidates []parserv1.ArticleCandidate
 	err        error
 }
@@ -29,6 +30,10 @@ func (parser fakeParser) SourceName() string {
 	return parser.sourceName
 }
 
+func (parser fakeParser) Strategy() string {
+	return parser.strategy
+}
+
 func (parser fakeParser) Search(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	if parser.err != nil {
 		return nil, parser.err
@@ -41,6 +46,7 @@ func TestSearchAndPublishPublishesCandidates(t *testing.T) {
 	usecase := NewUsecase(producer, []Parser{
 		fakeParser{
 			sourceName: "habr",
+			strategy:   "html_rss",
 			candidates: []parserv1.ArticleCandidate{
 				{
 					SourceName:  "habr",
@@ -71,6 +77,9 @@ func TestSearchAndPublishPublishesCandidates(t *testing.T) {
 	}
 	if result.SourceStats[0].FoundCount != 1 || result.SourceStats[0].AcceptedCount != 1 || result.SourceStats[0].ReturnedCount != 1 {
 		t.Fatalf("unexpected source stats: %#v", result.SourceStats[0])
+	}
+	if result.SourceStats[0].Strategy != "html_rss" {
+		t.Fatalf("expected source strategy, got %#v", result.SourceStats[0])
 	}
 	messages := producer.Messages()
 	if len(messages) != 1 {

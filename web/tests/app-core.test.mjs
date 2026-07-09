@@ -113,6 +113,7 @@ test("buildSelectedSources keeps explicit unique source list", () => {
 test("normalizeSourceStats accepts Go JSON field names", () => {
   const stat = normalizeSourceStats({
     SourceName: "vc",
+    Strategy: "html",
     Status: "ok",
     FoundCount: 12,
     AcceptedCount: 8,
@@ -124,6 +125,7 @@ test("normalizeSourceStats accepts Go JSON field names", () => {
 
   assert.deepEqual(stat, {
     sourceName: "vc",
+    strategy: "html",
     status: "ok",
     foundCount: 12,
     acceptedCount: 8,

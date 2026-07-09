@@ -55,6 +55,10 @@ func (client *Client) SourceName() string {
 	return SourceName
 }
 
+func (client *Client) Strategy() string {
+	return "html_search"
+}
+
 func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()

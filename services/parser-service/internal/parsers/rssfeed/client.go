@@ -47,6 +47,10 @@ func (client *Client) SourceName() string {
 	return client.sourceName
 }
 
+func (client *Client) Strategy() string {
+	return "rss"
+}
+
 func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	query = query.Normalize()
 	if err := query.Validate(); err != nil {

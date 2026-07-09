@@ -20,6 +20,10 @@ type Parser interface {
 	Search(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error)
 }
 
+type StrategyReporter interface {
+	Strategy() string
+}
+
 type Usecase struct {
 	producer    articleflowkafka.Producer
 	parsers     map[string]Parser
@@ -56,6 +60,7 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 		candidates, err := parser.Search(ctx, query)
 		sourceStats := parserv1.SourceStats{
 			SourceName: source,
+			Strategy:   sourceStrategy(parser),
 			Status:     parserv1.SourceStatusOK,
 			DurationMS: time.Since(startedAt).Milliseconds(),
 		}
@@ -185,6 +190,18 @@ func (usecase *Usecase) selectedSources(query parserv1.SearchQuery) []string {
 		return sources
 	}
 	return append([]string(nil), usecase.sourceOrder...)
+}
+
+func sourceStrategy(parser Parser) string {
+	reporter, ok := parser.(StrategyReporter)
+	if !ok {
+		return "unknown"
+	}
+	strategy := strings.TrimSpace(reporter.Strategy())
+	if strategy == "" {
+		return "unknown"
+	}
+	return strategy
 }
 
 type sourceCandidateBucket struct {

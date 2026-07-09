@@ -70,6 +70,7 @@ type ArticleCandidate struct {
 
 type SourceStats struct {
 	SourceName     string
+	Strategy       string
 	Status         string
 	FoundCount     int
 	AcceptedCount  int

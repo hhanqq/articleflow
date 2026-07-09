@@ -474,11 +474,12 @@ function renderSourceStats(rawStats) {
   elements.sourceStats.innerHTML = stats
     .map((stat) => {
       const error = stat.error ? `<span class="source-stats__error">${escapeHTML(stat.error)}</span>` : "";
+      const strategy = stat.strategy ? ` · ${escapeHTML(stat.strategy)}` : "";
       return `
         <div class="source-stat" data-status="${escapeHTML(stat.status || "unknown")}">
           <div>
             <strong>${escapeHTML(stat.sourceName || "source")}</strong>
-            <span>${escapeHTML(stat.status || "unknown")} · ${stat.durationMS} ms</span>
+            <span>${escapeHTML(stat.status || "unknown")}${strategy} · ${stat.durationMS} ms</span>
           </div>
           <dl>
             <dt>found</dt><dd>${stat.foundCount}</dd>

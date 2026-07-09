@@ -60,6 +60,13 @@ func (client *Client) SourceName() string {
 	return SourceName
 }
 
+func (client *Client) Strategy() string {
+	if client.urlSearcher == nil {
+		return "rss_fallback"
+	}
+	return "html_search_with_rss_fallback"
+}
+
 func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
