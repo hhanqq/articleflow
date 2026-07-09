@@ -78,3 +78,31 @@ func TestRSSSourceListParsesConfiguredSources(t *testing.T) {
 		t.Fatalf("unexpected custom source: %#v", sources[2])
 	}
 }
+
+func TestSchedulerConfigParsesQueriesAndSources(t *testing.T) {
+	cfg := Config{
+		SchedulerEnabled:    true,
+		SchedulerQueries:    "go kafka; путешествие в японию ; ",
+		SchedulerSources:    "habr,dzen,habr",
+		SchedulerLimit:      60,
+		SchedulerIntervalMS: 1500,
+	}
+
+	schedulerConfig := cfg.SchedulerConfig()
+
+	if !schedulerConfig.Enabled {
+		t.Fatal("expected scheduler enabled")
+	}
+	if len(schedulerConfig.Queries) != 2 {
+		t.Fatalf("expected 2 queries, got %d", len(schedulerConfig.Queries))
+	}
+	if schedulerConfig.Queries[0].Text != "go kafka" || schedulerConfig.Queries[0].Limit != 60 {
+		t.Fatalf("unexpected first query: %#v", schedulerConfig.Queries[0])
+	}
+	if len(schedulerConfig.Queries[0].Sources) != 2 || schedulerConfig.Queries[0].Sources[0] != "habr" || schedulerConfig.Queries[0].Sources[1] != "dzen" {
+		t.Fatalf("unexpected sources: %#v", schedulerConfig.Queries[0].Sources)
+	}
+	if schedulerConfig.Interval.String() != "1.5s" {
+		t.Fatalf("unexpected interval: %s", schedulerConfig.Interval)
+	}
+}

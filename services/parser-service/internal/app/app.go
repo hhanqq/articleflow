@@ -9,6 +9,7 @@ import (
 	"github.com/hanq/articleflow/packages/observability"
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
 	"github.com/hanq/articleflow/services/parser-service/internal/jobs"
+	"github.com/hanq/articleflow/services/parser-service/internal/scheduler"
 	"github.com/hanq/articleflow/services/parser-service/internal/search"
 	"github.com/hanq/articleflow/services/parser-service/internal/sources"
 	httptransport "github.com/hanq/articleflow/services/parser-service/internal/transport/http"
@@ -32,10 +33,18 @@ func (app *App) Handler() http.Handler {
 }
 
 func (app *App) handlerWithStore(store jobs.Store) http.Handler {
+	return app.handlerWithManager(app.newJobManager(store))
+}
+
+func (app *App) newJobManager(store jobs.Store) *jobs.Manager {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
 	sourceRegistry := sources.BuildRegistry(app.cfg)
 	searchUsecase := search.NewUsecase(producer, sourceRegistry.Parsers)
-	manager := jobs.NewManager(store, searchUsecase)
+	return jobs.NewManager(store, searchUsecase)
+}
+
+func (app *App) handlerWithManager(manager *jobs.Manager) http.Handler {
+	sourceRegistry := sources.BuildRegistry(app.cfg)
 	metrics := observability.NewMetricsRegistry()
 	metrics.Inc("articleflow_service_info")
 
@@ -55,14 +64,20 @@ func (app *App) Run(ctx context.Context) error {
 		return err
 	}
 	defer closeStore()
+	manager := app.newJobManager(store)
 	server := &http.Server{
 		Addr:    app.cfg.HTTPAddr,
-		Handler: app.handlerWithStore(store),
+		Handler: app.handlerWithManager(manager),
 	}
-	errs := make(chan error, 1)
+	errs := make(chan error, 2)
 	go func() {
 		errs <- server.ListenAndServe()
 	}()
+	if app.cfg.SchedulerEnabled {
+		go func() {
+			errs <- scheduler.New(manager, app.cfg.SchedulerConfig()).Run(ctx)
+		}()
+	}
 
 	select {
 	case <-ctx.Done():
