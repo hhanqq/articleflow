@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS parser_jobs (
     id text PRIMARY KEY,
     query jsonb NOT NULL,

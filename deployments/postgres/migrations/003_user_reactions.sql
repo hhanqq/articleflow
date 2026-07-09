@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS user_reactions (
     user_id TEXT NOT NULL,
     article_id TEXT NOT NULL,

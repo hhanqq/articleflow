@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS feed_items (
     article_id TEXT PRIMARY KEY,
     source_name TEXT NOT NULL,

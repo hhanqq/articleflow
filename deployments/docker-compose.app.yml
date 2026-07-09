@@ -6,8 +6,8 @@ x-go-service: &go-service
   depends_on:
     kafka:
       condition: service_started
-    postgres:
-      condition: service_healthy
+    migrations:
+      condition: service_completed_successfully
   environment:
     KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
     ARTICLE_DISCOVERED_TOPIC: ${ARTICLE_DISCOVERED_TOPIC:-article.discovered.v1}
@@ -21,6 +21,19 @@ x-postgres-dsn:
   parser: &parser-postgres-dsn ${PARSER_POSTGRES_DSN:-postgres://articleflow:articleflow@postgres:5432/articleflow?sslmode=disable}
 
 services:
+  migrations:
+    build:
+      context: ..
+      dockerfile: deployments/docker/migrations.Dockerfile
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - postgres
+      - ${MIGRATIONS_POSTGRES_DSN:-postgres://articleflow:articleflow@postgres:5432/articleflow?sslmode=disable}
+      - up
+
   parser-service:
     <<: *go-service
     build:
@@ -174,5 +187,23 @@ services:
     depends_on:
       gateway-api:
         condition: service_healthy
+    expose:
+      - "80"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      gateway-api:
+        condition: service_healthy
+      web:
+        condition: service_started
     ports:
-      - "${WEB_HTTP_PORT:-5173}:80"
+      - "${NGINX_HTTP_PORT:-5173}:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 12

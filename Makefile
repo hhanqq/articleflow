@@ -1,5 +1,8 @@
 SHELL := /bin/bash
 PROJECT_ROOT := $(CURDIR)
+APP_ENV_FILE ?= .env
+DEFAULT_APP_ENV_FILE := deployments/env/local.env.example
+COMPOSE_APP_ENV_FILE := $(if $(wildcard $(APP_ENV_FILE)),$(APP_ENV_FILE),$(DEFAULT_APP_ENV_FILE))
 
 export GOPATH := $(PROJECT_ROOT)/.go
 export GOMODCACHE := $(PROJECT_ROOT)/.go/pkg/mod
@@ -7,7 +10,7 @@ export GOCACHE := $(PROJECT_ROOT)/.cache/go-build
 export GOBIN := $(PROJECT_ROOT)/.bin
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: env test web-test ci compose-config app-up app-down web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
+.PHONY: env env-init test web-test ci compose-config migrate-up app-up app-down web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
 
 env:
 	@mkdir -p "$(GOPATH)" "$(GOMODCACHE)" "$(GOCACHE)" "$(GOBIN)"
@@ -15,6 +18,10 @@ env:
 	@echo "GOMODCACHE=$(GOMODCACHE)"
 	@echo "GOCACHE=$(GOCACHE)"
 	@echo "GOBIN=$(GOBIN)"
+
+env-init:
+	@test -f "$(APP_ENV_FILE)" || cp "$(DEFAULT_APP_ENV_FILE)" "$(APP_ENV_FILE)"
+	@echo "env file: $(APP_ENV_FILE)"
 
 test: env
 	go test ./contracts/... ./packages/config/... ./packages/kafka/... ./packages/observability/... ./services/article-service/... ./services/feed-service/... ./services/gateway-api/... ./services/parser-service/... ./services/ranking-service/... ./services/user-service/...
@@ -30,13 +37,16 @@ ci: test web-test
 	git diff --check
 
 compose-config:
-	docker compose --env-file deployments/env/local.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml config
+	docker compose --env-file "$(COMPOSE_APP_ENV_FILE)" -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml config
+
+migrate-up:
+	docker compose --env-file "$(COMPOSE_APP_ENV_FILE)" -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml run --rm migrations
 
 app-up:
-	docker compose --env-file deployments/env/local.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml up -d --build
+	docker compose --env-file "$(COMPOSE_APP_ENV_FILE)" -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml up -d --build
 
 app-down:
-	docker compose --env-file deployments/env/local.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml down
+	docker compose --env-file "$(COMPOSE_APP_ENV_FILE)" -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml down
 
 web:
 	cd web && npm run start

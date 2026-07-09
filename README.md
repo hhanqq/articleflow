@@ -419,18 +419,26 @@ make dev-smoke
 
 ## Docker Compose App Stack
 
-`deployments/docker-compose.yml` contains shared infrastructure: Kafka, Postgres, Redis, and Kafka UI. `deployments/docker-compose.app.yml` adds every application service and the static web UI.
+`deployments/docker-compose.yml` contains shared infrastructure: Kafka, Postgres, Redis, and Kafka UI. `deployments/docker-compose.app.yml` adds migrations, every application service, the static web UI, and an nginx reverse proxy.
 
-Create a local env file from the template:
+Create the local `.env` file from the template:
 
 ```bash
-cp deployments/env/local.env.example deployments/env/local.env
+make env-init
 ```
+
+Real `.env` files are gitignored. Keep passwords and external API keys there, not in committed files. By default, app compose commands use `.env`; override with `APP_ENV_FILE=deployments/env/stage.env` or `APP_ENV_FILE=deployments/env/prod.env`.
 
 Validate the full Compose config:
 
 ```bash
 make compose-config
+```
+
+Run Postgres migrations through goose:
+
+```bash
+make migrate-up
 ```
 
 Run the full Docker stack:
@@ -448,7 +456,7 @@ make app-down
 Equivalent explicit command:
 
 ```bash
-docker compose --env-file deployments/env/local.env \
+docker compose --env-file .env \
   -f deployments/docker-compose.yml \
   -f deployments/docker-compose.app.yml \
   up -d --build
@@ -461,18 +469,33 @@ deployments/env/stage.env.example
 deployments/env/prod.env.example
 ```
 
-Copy the matching template to `deployments/env/stage.env` or `deployments/env/prod.env`, then replace passwords, public hostnames in `KAFKA_ADVERTISED_LISTENERS`, ports, and external parser API keys. Real `deployments/env/*.env` files are gitignored.
+Copy the matching template to `deployments/env/stage.env` or `deployments/env/prod.env`, then replace passwords, public hostnames in `KAFKA_ADVERTISED_LISTENERS`, ports, and external parser API keys.
 
 The Compose app stack exposes:
 
 ```text
-web             http://localhost:5173  local default
+nginx           http://localhost:5173  local default, web + /api proxy
 gateway-api     http://localhost:8080
 parser-service  http://localhost:8081
 feed-service    http://localhost:8082
 article-service http://localhost:8083
 kafka-ui        http://localhost:8088
 ```
+
+Nginx routes `/` to the web container and `/api/*`, `/healthz`, `/metrics` to `gateway-api`. In production, set `NGINX_HTTP_PORT=80` or terminate TLS in an external load balancer/reverse proxy in front of this service.
+
+Goose runs as the `migrations` compose service before application services start. SQL files live in `deployments/postgres/migrations` and use goose `-- +goose Up` annotations while remaining compatible with the existing local `psql` dev scripts.
+
+## Dzen And Yandex Sources
+
+`dzen` and `yandex` are currently RSS/Atom-backed sources, not full-site search parsers. They are registered only when a concrete feed URL is configured:
+
+```text
+DZEN_RSS_FEED_URL=https://...
+YANDEX_RSS_FEED_URL=https://...
+```
+
+You can also add arbitrary RSS/Atom feeds through `CUSTOM_RSS_SOURCES`, for example `dzen=https://dzen.ru/rss,yandex=https://news.yandex.ru/index.rss`. Full query search across Dzen pages still needs a dedicated parser/source adapter.
 
 Logs are written to `/tmp/articleflow-dev`.
 

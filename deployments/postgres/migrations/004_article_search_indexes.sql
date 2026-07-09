@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE INDEX IF NOT EXISTS idx_articles_search_vector ON articles USING GIN ((
     setweight(to_tsvector('russian', coalesce(title, '')), 'A') ||
     setweight(to_tsvector('russian', coalesce(summary, '')), 'B') ||

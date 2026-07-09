@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS articles (
     id TEXT PRIMARY KEY,
     source_name TEXT NOT NULL,
@@ -17,4 +18,3 @@ CREATE TABLE IF NOT EXISTS articles (
 
 CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles (published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_articles_source_name ON articles (source_name);
-

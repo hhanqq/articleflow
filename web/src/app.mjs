@@ -2,6 +2,7 @@ import {
   buildReactionPayload,
   buildSearchJobPayload,
   buildSelectedSources,
+  defaultAPIBase,
   formatDate,
   formatScore,
   normalizeArticle,
@@ -16,7 +17,7 @@ import {
 } from "./app-core.mjs";
 
 const state = {
-  apiBase: localStorage.getItem("articleflow.apiBase") || "http://localhost:8080",
+  apiBase: localStorage.getItem("articleflow.apiBase") || defaultAPIBase(window.location.origin),
   userID: localStorage.getItem("articleflow.userID") || "reader-demo",
   items: [],
   selectedIndex: 0,

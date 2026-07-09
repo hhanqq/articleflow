@@ -5,6 +5,7 @@ import {
   buildReactionPayload,
   buildSearchJobPayload,
   buildSelectedSources,
+  defaultAPIBase,
   formatScore,
   normalizeArticle,
   normalizeCandidateItem,
@@ -16,6 +17,13 @@ import {
   normalizeSourcesResponse,
   shouldPollJob,
 } from "../src/app-core.mjs";
+
+test("defaultAPIBase uses gateway in local dev and same origin behind nginx", () => {
+  assert.equal(defaultAPIBase("http://127.0.0.1:5173"), "http://localhost:8080");
+  assert.equal(defaultAPIBase("http://localhost:5173"), "http://localhost:8080");
+  assert.equal(defaultAPIBase("http://localhost:8089"), "http://localhost:8089");
+  assert.equal(defaultAPIBase("https://articles.example.com"), "https://articles.example.com");
+});
 
 test("normalizeFeedItem accepts Go JSON field names from gateway", () => {
   const item = normalizeFeedItem({

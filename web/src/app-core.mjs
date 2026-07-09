@@ -1,6 +1,14 @@
 const ACTIVE_JOB_STATUSES = new Set(["queued", "running"]);
 const REACTION_TYPES = new Set(["like", "dislike", "skip", "save", "open"]);
 
+export function defaultAPIBase(origin = "") {
+  const normalized = String(origin || "").replace(/\/+$/, "");
+  if (normalized === "http://127.0.0.1:5173" || normalized === "http://localhost:5173") {
+    return "http://localhost:8080";
+  }
+  return normalized || "http://localhost:8080";
+}
+
 export function normalizeFeedItem(raw = {}) {
   const tags = raw.Tags ?? raw.tags ?? [];
   const scoreReasons = raw.ScoreReasons ?? raw.score_reasons ?? [];
