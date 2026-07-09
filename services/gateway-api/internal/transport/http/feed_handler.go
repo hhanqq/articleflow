@@ -35,6 +35,7 @@ type FeedResponse struct {
 	Items         []feedv1.FeedItem   `json:"items"`
 	Mode          string              `json:"mode,omitempty"`
 	ReturnedCount int                 `json:"returned_count"`
+	NextCursor    string              `json:"next_cursor,omitempty"`
 	RefillStarted bool                `json:"refill_started,omitempty"`
 	RefillJob     *parserv1.ParserJob `json:"refill_job,omitempty"`
 }
@@ -71,6 +72,7 @@ func handleQueryFeed(response http.ResponseWriter, request *http.Request, depend
 		Text:    queryText,
 		Sources: parseCSVQueryValues(request, "sources"),
 		Limit:   limit,
+		Offset:  parseFeedCursor(request.URL.Query().Get("cursor")),
 	}.Normalize()
 	candidates, err := dependencies.SearchProvider.Search(query)
 	if err != nil {
@@ -82,6 +84,7 @@ func handleQueryFeed(response http.ResponseWriter, request *http.Request, depend
 		Items:         items,
 		Mode:          "query",
 		ReturnedCount: len(items),
+		NextCursor:    nextFeedCursor(query.Offset, len(items), limit),
 	}
 	if shouldStartRefill(request, dependencies, len(items), limit) {
 		refillQuery := query
@@ -170,6 +173,29 @@ func parseCSVQueryValues(request *http.Request, key string) []string {
 		}
 	}
 	return values
+}
+
+func parseFeedCursor(rawCursor string) int {
+	rawCursor = strings.TrimSpace(rawCursor)
+	if rawCursor == "" {
+		return 0
+	}
+	rawOffset, ok := strings.CutPrefix(rawCursor, "offset:")
+	if !ok {
+		return 0
+	}
+	offset, err := strconv.Atoi(strings.TrimSpace(rawOffset))
+	if err != nil || offset < 0 {
+		return 0
+	}
+	return offset
+}
+
+func nextFeedCursor(currentOffset int, returnedCount int, limit int) string {
+	if returnedCount <= 0 || limit <= 0 || returnedCount < limit {
+		return ""
+	}
+	return "offset:" + strconv.Itoa(currentOffset+returnedCount)
 }
 
 func parseLimit(request *http.Request) int {

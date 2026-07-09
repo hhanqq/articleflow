@@ -161,3 +161,38 @@ func TestFeedHandlerStartsBackgroundRefillWhenQueryFeedIsThin(t *testing.T) {
 		t.Fatalf("unexpected refill sources: %#v", started.Sources)
 	}
 }
+
+func TestFeedHandlerUsesCursorForQueryFeedPagination(t *testing.T) {
+	searcher := &fakeFeedSearchProvider{
+		candidates: []parserv1.ArticleCandidate{
+			{
+				SourceName: "habr",
+				ExternalID: "habr-2",
+				URL:        "https://habr.com/ru/articles/2/",
+				Title:      "Go Kafka page two",
+			},
+		},
+	}
+	handler := NewFeedHandlerWithRefill(FeedHandlerDependencies{
+		FeedProvider:   fakeFeedProvider{},
+		SearchProvider: searcher,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/feed?query=go+kafka&limit=1&cursor=offset:1", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	var payload FeedResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if searcher.query.Offset != 1 {
+		t.Fatalf("expected search offset from cursor, got %#v", searcher.query)
+	}
+	if payload.NextCursor != "offset:2" {
+		t.Fatalf("expected next cursor offset:2, got %q", payload.NextCursor)
+	}
+}
