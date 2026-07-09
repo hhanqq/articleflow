@@ -19,6 +19,9 @@ func TestSearchHTMLExtractsArticleLinksAndParsesArticles(t *testing.T) {
 			if request.URL.Query().Get("query") != "Турция" {
 				t.Fatalf("unexpected query: %s", request.URL.RawQuery)
 			}
+			if request.URL.Query().Get("type_filter") != "article,brief" {
+				t.Fatalf("unexpected type_filter: %s", request.URL.RawQuery)
+			}
 			if !strings.Contains(request.Header.Get("Cookie"), "zen_sso_checked=1") {
 				t.Fatalf("expected dzen sso cookie, got %q", request.Header.Get("Cookie"))
 			}
@@ -29,6 +32,7 @@ func TestSearchHTMLExtractsArticleLinksAndParsesArticles(t *testing.T) {
 				<html><body>
 					<a href="/a/first">Первый материал</a>
 					<a href="https://dzen.ru/media/travel/second?utm_source=x">Второй материал</a>
+					<a href="https://dzen.ru/media/zen/login?repostId=service">Служебная ссылка</a>
 					<a href="/profile/editor">Канал</a>
 					<a href="/a/first">Дубль</a>
 				</body></html>
@@ -66,6 +70,9 @@ func TestSearchFetchesArticlePagesConcurrently(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
 		case "/search":
+			if request.URL.Query().Get("type_filter") != "article,brief" {
+				t.Fatalf("unexpected type_filter: %s", request.URL.RawQuery)
+			}
 			_, _ = response.Write([]byte(`
 				<html><body>
 					<a href="/a/first">Первый материал</a>

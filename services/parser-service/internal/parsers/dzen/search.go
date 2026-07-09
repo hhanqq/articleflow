@@ -56,5 +56,8 @@ func normalizeDzenArticleURL(rawURL string, baseURL string) string {
 
 func isDzenArticlePath(path string) bool {
 	path = strings.Trim(strings.ToLower(path), "/")
+	if strings.HasPrefix(path, "media/zen/login") {
+		return false
+	}
 	return strings.HasPrefix(path, "a/") || strings.HasPrefix(path, "media/")
 }

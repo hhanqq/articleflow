@@ -166,6 +166,7 @@ func (client *Client) searchURL(query string) string {
 	parsed, _ := url.Parse(client.baseURL + "/search")
 	values := parsed.Query()
 	values.Set("query", strings.TrimSpace(query))
+	values.Set("type_filter", "article,brief")
 	parsed.RawQuery = values.Encode()
 	return parsed.String()
 }
