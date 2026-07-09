@@ -1,0 +1,178 @@
+x-go-service: &go-service
+  build:
+    context: ..
+    dockerfile: deployments/docker/go-service.Dockerfile
+  restart: unless-stopped
+  depends_on:
+    kafka:
+      condition: service_started
+    postgres:
+      condition: service_healthy
+  environment:
+    KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+    ARTICLE_DISCOVERED_TOPIC: ${ARTICLE_DISCOVERED_TOPIC:-article.discovered.v1}
+    FEED_SCORED_TOPIC: ${FEED_SCORED_TOPIC:-feed.item.scored.v1}
+    USER_REACTION_TOPIC: ${USER_REACTION_TOPIC:-user.reaction.created.v1}
+
+x-postgres-dsn:
+  article: &article-postgres-dsn ${ARTICLE_POSTGRES_DSN:-postgres://articleflow:articleflow@postgres:5432/articleflow?sslmode=disable}
+  feed: &feed-postgres-dsn ${FEED_POSTGRES_DSN:-postgres://articleflow:articleflow@postgres:5432/articleflow?sslmode=disable}
+  user: &user-postgres-dsn ${USER_POSTGRES_DSN:-postgres://articleflow:articleflow@postgres:5432/articleflow?sslmode=disable}
+  parser: &parser-postgres-dsn ${PARSER_POSTGRES_DSN:-postgres://articleflow:articleflow@postgres:5432/articleflow?sslmode=disable}
+
+services:
+  parser-service:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: deployments/docker/go-service.Dockerfile
+      args:
+        SERVICE: parser-service
+    ports:
+      - "${PARSER_HTTP_PORT:-8081}:8081"
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+      PARSER_HTTP_ADDR: :8081
+      PARSER_STORAGE_DRIVER: ${PARSER_STORAGE_DRIVER:-postgres}
+      PARSER_POSTGRES_DSN: *parser-postgres-dsn
+      HABR_BASE_URL: ${HABR_BASE_URL:-https://habr.com}
+      HABR_MAX_ATTEMPTS: ${HABR_MAX_ATTEMPTS:-3}
+      HABR_RETRY_DELAY_MS: ${HABR_RETRY_DELAY_MS:-500}
+      HABR_REQUEST_DELAY_MS: ${HABR_REQUEST_DELAY_MS:-500}
+      VC_BASE_URL: ${VC_BASE_URL:-https://vc.ru}
+      VC_RSS_FEED_URL: ${VC_RSS_FEED_URL:-https://vc.ru/rss}
+      VC_SEARCH_PROVIDER: ${VC_SEARCH_PROVIDER:-discovery}
+      GOOGLE_SEARCH_API_KEY: ${GOOGLE_SEARCH_API_KEY:-}
+      GOOGLE_SEARCH_CX: ${GOOGLE_SEARCH_CX:-}
+      BING_SEARCH_API_KEY: ${BING_SEARCH_API_KEY:-}
+      DZEN_RSS_FEED_URL: ${DZEN_RSS_FEED_URL:-}
+      YANDEX_RSS_FEED_URL: ${YANDEX_RSS_FEED_URL:-}
+      CUSTOM_RSS_SOURCES: ${CUSTOM_RSS_SOURCES:-}
+      PARSER_DISABLED_SOURCES: ${PARSER_DISABLED_SOURCES:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/healthz >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  article-service:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: deployments/docker/go-service.Dockerfile
+      args:
+        SERVICE: article-service
+    ports:
+      - "${ARTICLE_HTTP_PORT:-8083}:8083"
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+      ARTICLE_HTTP_ADDR: :8083
+      ARTICLE_GRPC_ADDR: :9001
+      ARTICLE_DISCOVERED_TOPIC: ${ARTICLE_DISCOVERED_TOPIC:-article.discovered.v1}
+      ARTICLE_CONSUMER_GROUP_ID: ${ARTICLE_CONSUMER_GROUP_ID:-article-service}
+      ARTICLE_CONSUMER_MAX_MESSAGES: ${ARTICLE_CONSUMER_MAX_MESSAGES:-0}
+      ARTICLE_STORAGE_DRIVER: ${ARTICLE_STORAGE_DRIVER:-postgres}
+      ARTICLE_POSTGRES_DSN: *article-postgres-dsn
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/healthz >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  ranking-service:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: deployments/docker/go-service.Dockerfile
+      args:
+        SERVICE: ranking-service
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+      RANKING_GRPC_ADDR: :9004
+      ARTICLE_DISCOVERED_TOPIC: ${ARTICLE_DISCOVERED_TOPIC:-article.discovered.v1}
+      USER_REACTION_TOPIC: ${USER_REACTION_TOPIC:-user.reaction.created.v1}
+      RANKING_CONSUMER_GROUP_ID: ${RANKING_CONSUMER_GROUP_ID:-ranking-service}
+      RANKING_REACTION_CONSUMER_GROUP_ID: ${RANKING_REACTION_CONSUMER_GROUP_ID:-ranking-service-reactions}
+      RANKING_CONSUMER_MAX_MESSAGES: ${RANKING_CONSUMER_MAX_MESSAGES:-0}
+      RANKING_REACTION_CONSUMER_MAX_MESSAGES: ${RANKING_REACTION_CONSUMER_MAX_MESSAGES:-0}
+
+  feed-service:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: deployments/docker/go-service.Dockerfile
+      args:
+        SERVICE: feed-service
+    ports:
+      - "${FEED_HTTP_PORT:-8082}:8082"
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+      FEED_HTTP_ADDR: :8082
+      FEED_GRPC_ADDR: :9002
+      FEED_SCORED_TOPIC: ${FEED_SCORED_TOPIC:-feed.item.scored.v1}
+      FEED_CONSUMER_GROUP_ID: ${FEED_CONSUMER_GROUP_ID:-feed-service}
+      FEED_CONSUMER_MAX_MESSAGES: ${FEED_CONSUMER_MAX_MESSAGES:-0}
+      FEED_STORAGE_DRIVER: ${FEED_STORAGE_DRIVER:-postgres}
+      FEED_POSTGRES_DSN: *feed-postgres-dsn
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/healthz >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  user-service:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: deployments/docker/go-service.Dockerfile
+      args:
+        SERVICE: user-service
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+      USER_GRPC_ADDR: :9003
+      USER_REACTION_TOPIC: ${USER_REACTION_TOPIC:-user.reaction.created.v1}
+      USER_CONSUMER_GROUP_ID: ${USER_CONSUMER_GROUP_ID:-user-service}
+      USER_CONSUMER_MAX_MESSAGES: ${USER_CONSUMER_MAX_MESSAGES:-0}
+      USER_STORAGE_DRIVER: ${USER_STORAGE_DRIVER:-postgres}
+      USER_POSTGRES_DSN: *user-postgres-dsn
+
+  gateway-api:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: deployments/docker/go-service.Dockerfile
+      args:
+        SERVICE: gateway-api
+    depends_on:
+      article-service:
+        condition: service_healthy
+      parser-service:
+        condition: service_healthy
+      feed-service:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    ports:
+      - "${GATEWAY_HTTP_PORT:-8080}:8080"
+    environment:
+      GATEWAY_HTTP_ADDR: :8080
+      ARTICLE_SERVICE_URL: http://article-service:8083
+      PARSER_SERVICE_URL: http://parser-service:8081
+      FEED_SERVICE_URL: http://feed-service:8082
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  web:
+    build:
+      context: ..
+      dockerfile: deployments/docker/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      gateway-api:
+        condition: service_healthy
+    ports:
+      - "${WEB_HTTP_PORT:-5173}:80"

@@ -417,6 +417,63 @@ make dev-status
 make dev-smoke
 ```
 
+## Docker Compose App Stack
+
+`deployments/docker-compose.yml` contains shared infrastructure: Kafka, Postgres, Redis, and Kafka UI. `deployments/docker-compose.app.yml` adds every application service and the static web UI.
+
+Create a local env file from the template:
+
+```bash
+cp deployments/env/local.env.example deployments/env/local.env
+```
+
+Validate the full Compose config:
+
+```bash
+make compose-config
+```
+
+Run the full Docker stack:
+
+```bash
+make app-up
+```
+
+Stop it:
+
+```bash
+make app-down
+```
+
+Equivalent explicit command:
+
+```bash
+docker compose --env-file deployments/env/local.env \
+  -f deployments/docker-compose.yml \
+  -f deployments/docker-compose.app.yml \
+  up -d --build
+```
+
+Stage and production env templates live here:
+
+```text
+deployments/env/stage.env.example
+deployments/env/prod.env.example
+```
+
+Copy the matching template to `deployments/env/stage.env` or `deployments/env/prod.env`, then replace passwords, public hostnames in `KAFKA_ADVERTISED_LISTENERS`, ports, and external parser API keys. Real `deployments/env/*.env` files are gitignored.
+
+The Compose app stack exposes:
+
+```text
+web             http://localhost:5173  local default
+gateway-api     http://localhost:8080
+parser-service  http://localhost:8081
+feed-service    http://localhost:8082
+article-service http://localhost:8083
+kafka-ui        http://localhost:8088
+```
+
 Logs are written to `/tmp/articleflow-dev`.
 
 Smoke-run all services without leaving long-running processes:

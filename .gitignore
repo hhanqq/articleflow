@@ -4,6 +4,8 @@
 .idea/
 .vscode/
 .env
+deployments/env/*.env
+!deployments/env/*.env.example
 *.log
 tmp/
 dist/

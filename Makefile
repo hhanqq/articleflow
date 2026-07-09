@@ -7,7 +7,7 @@ export GOCACHE := $(PROJECT_ROOT)/.cache/go-build
 export GOBIN := $(PROJECT_ROOT)/.bin
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: env test web-test ci web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
+.PHONY: env test web-test ci compose-config app-up app-down web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
 
 env:
 	@mkdir -p "$(GOPATH)" "$(GOMODCACHE)" "$(GOCACHE)" "$(GOBIN)"
@@ -24,7 +24,19 @@ web-test:
 
 ci: test web-test
 	docker compose -f deployments/docker-compose.yml config >/dev/null
+	docker compose --env-file deployments/env/local.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml config >/dev/null
+	docker compose --env-file deployments/env/stage.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml config >/dev/null
+	docker compose --env-file deployments/env/prod.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml config >/dev/null
 	git diff --check
+
+compose-config:
+	docker compose --env-file deployments/env/local.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml config
+
+app-up:
+	docker compose --env-file deployments/env/local.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml up -d --build
+
+app-down:
+	docker compose --env-file deployments/env/local.env.example -f deployments/docker-compose.yml -f deployments/docker-compose.app.yml down
 
 web:
 	cd web && npm run start
