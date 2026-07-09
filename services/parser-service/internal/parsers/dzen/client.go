@@ -14,6 +14,7 @@ import (
 )
 
 const SourceName = "dzen"
+const maxSearchPages = 4
 
 type ClientOptions struct {
 	BaseURL       string
@@ -68,11 +69,49 @@ func (client *Client) Search(ctx context.Context, query parserv1.SearchQuery) ([
 		return nil, fmt.Errorf("dzen search redirected to auth: %s", finalURL)
 	}
 
-	urls, err := ParseSearchHTML(searchBody, finalURL, client.publicBaseURL, query.Limit)
+	urls, err := client.collectSearchURLs(ctx, searchBody, finalURL, query.Limit)
 	if err != nil {
 		return nil, err
 	}
 	return client.fetchCandidates(ctx, urls, query.Limit), nil
+}
+
+func (client *Client) collectSearchURLs(ctx context.Context, searchBody io.Reader, finalURL string, limit int) ([]string, error) {
+	targetURLCount := searchURLTarget(limit)
+	page, err := ParseSearchPage(searchBody, finalURL, client.publicBaseURL, targetURLCount)
+	if err != nil {
+		return nil, err
+	}
+	urls := make([]string, 0, targetURLCount)
+	seen := make(map[string]bool, targetURLCount)
+	addURLs := func(nextURLs []string) {
+		for _, articleURL := range nextURLs {
+			if articleURL == "" || seen[articleURL] {
+				continue
+			}
+			seen[articleURL] = true
+			urls = append(urls, articleURL)
+			if targetURLCount > 0 && len(urls) >= targetURLCount {
+				return
+			}
+		}
+	}
+	addURLs(page.URLs)
+	moreURL := page.MoreURL
+	for pageIndex := 1; moreURL != "" && (targetURLCount <= 0 || len(urls) < targetURLCount) && pageIndex < maxSearchPages; pageIndex++ {
+		moreBody, moreFinalURL, err := client.get(ctx, client.fetchURL(moreURL))
+		if err != nil {
+			break
+		}
+		nextPage, parseErr := ParseSearchPage(moreBody, moreFinalURL, client.publicBaseURL, targetURLCount-len(urls))
+		closeErr := moreBody.Close()
+		if parseErr != nil || closeErr != nil {
+			break
+		}
+		addURLs(nextPage.URLs)
+		moreURL = nextPage.MoreURL
+	}
+	return urls, nil
 }
 
 func (client *Client) fetchCandidates(ctx context.Context, urls []string, limit int) []parserv1.ArticleCandidate {
@@ -203,6 +242,20 @@ func minInt(left int, right int) int {
 		return left
 	}
 	return right
+}
+
+func maxInt(left int, right int) int {
+	if left > right {
+		return left
+	}
+	return right
+}
+
+func searchURLTarget(limit int) int {
+	if limit <= 0 {
+		return 50
+	}
+	return maxInt(limit*2, limit+10)
 }
 
 func isAuthRedirect(finalURL string) bool {

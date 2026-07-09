@@ -100,6 +100,33 @@ func TestSearchHTMLExtractsEmbeddedArticleURLs(t *testing.T) {
 	}
 }
 
+func TestSearchPageExtractsMoreURL(t *testing.T) {
+	html := strings.NewReader(`
+		<html><body>
+			<script>
+				window.__STATE__ = {
+					"items": [{"url":"https://dzen.ru/a/first"}],
+					"more": {
+						"link": "https:\/\/dzen.ru\/api\/web\/v1\/zen-search?query=%D0%A2%D1%83%D1%80%D1%86%D0%B8%D1%8F&page_context=abc\u0026sid=42"
+					}
+				};
+			</script>
+		</body></html>
+	`)
+
+	page, err := ParseSearchPage(html, "https://dzen.ru/search?query=Турция", "https://dzen.ru", 10)
+	if err != nil {
+		t.Fatalf("parse search page: %v", err)
+	}
+	if len(page.URLs) != 1 || page.URLs[0] != "https://dzen.ru/a/first" {
+		t.Fatalf("unexpected URLs: %#v", page.URLs)
+	}
+	expectedMore := "https://dzen.ru/api/web/v1/zen-search?query=%D0%A2%D1%83%D1%80%D1%86%D0%B8%D1%8F&page_context=abc&sid=42"
+	if page.MoreURL != expectedMore {
+		t.Fatalf("unexpected more URL: got %s, want %s", page.MoreURL, expectedMore)
+	}
+}
+
 func TestSearchFetchesArticlePagesConcurrently(t *testing.T) {
 	var inFlight int64
 	var maxInFlight int64
@@ -145,6 +172,47 @@ func TestSearchFetchesArticlePagesConcurrently(t *testing.T) {
 	}
 	if atomic.LoadInt64(&maxInFlight) < 2 {
 		t.Fatalf("expected concurrent article fetches, max in-flight was %d, elapsed %s", maxInFlight, elapsed)
+	}
+}
+
+func TestSearchFollowsDzenMoreLinkUntilLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/search":
+			_, _ = response.Write([]byte(`
+				<html><body><script>
+					window.__STATE__ = {
+						"items": [{"url":"https://dzen.ru/a/first"}],
+						"more": {"link": "https://dzen.ru/api/web/v1/zen-search?page_context=next"}
+					};
+				</script></body></html>
+			`))
+		case "/api/web/v1/zen-search":
+			_, _ = response.Write([]byte(`{
+				"items": [
+					{"url":"https://dzen.ru/a/second"},
+					{"url":"https://dzen.ru/a/third"}
+				]
+			}`))
+		case "/a/first", "/a/second", "/a/third":
+			_, _ = response.Write([]byte(articleHTML("Турция "+request.URL.Path, "Описание", "https://dzen.ru"+request.URL.Path)))
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{BaseURL: server.URL, PublicBaseURL: "https://dzen.ru", HTTPClient: server.Client()})
+
+	candidates, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "Турция", Limit: 3}.Normalize())
+	if err != nil {
+		t.Fatalf("search dzen: %v", err)
+	}
+	if len(candidates) != 3 {
+		t.Fatalf("expected 3 candidates, got %d: %#v", len(candidates), candidates)
+	}
+	if candidates[2].URL != "https://dzen.ru/a/third" {
+		t.Fatalf("unexpected third candidate: %#v", candidates[2])
 	}
 }
 
