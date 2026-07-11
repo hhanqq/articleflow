@@ -6,17 +6,26 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
 
 func TestClientStartsParserJob(t *testing.T) {
+	fromDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", request.Method)
 		}
 		if request.URL.Path != "/api/v1/parser/jobs" {
 			t.Fatalf("unexpected path: %s", request.URL.Path)
+		}
+		var payload jobRequest
+		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if payload.FromDate == nil || !payload.FromDate.Equal(fromDate) {
+			t.Fatalf("expected from date to be forwarded, got %#v", payload.FromDate)
 		}
 		_ = json.NewEncoder(response).Encode(jobResponse{Job: parserv1.ParserJob{
 			ID:     "parser-job-1",
@@ -26,7 +35,7 @@ func TestClientStartsParserJob(t *testing.T) {
 	defer server.Close()
 	client := New(server.URL, server.Client())
 
-	job, err := client.StartAsync(context.Background(), parserv1.SearchQuery{Text: "go kafka", Limit: 5})
+	job, err := client.StartAsync(context.Background(), parserv1.SearchQuery{Text: "go kafka", Limit: 5, FromDate: &fromDate})
 
 	if err != nil {
 		t.Fatalf("start job: %v", err)

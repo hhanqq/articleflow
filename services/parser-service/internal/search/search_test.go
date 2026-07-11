@@ -449,6 +449,58 @@ func TestSearchAndPublishFiltersIrrelevantCandidatesAndSortsByRelevance(t *testi
 	}
 }
 
+func TestSearchAndPublishFiltersCandidatesOutsideDateRange(t *testing.T) {
+	producer := articleflowkafka.NewMemoryProducer()
+	usecase := NewUsecase(producer, []Parser{
+		fakeParser{
+			sourceName: "dzen",
+			candidates: []parserv1.ArticleCandidate{
+				{
+					SourceName:  "dzen",
+					ExternalID:  "old",
+					URL:         "https://dzen.ru/a/old",
+					Title:       "Новости про Китай",
+					PublishedAt: time.Date(2011, 1, 1, 10, 0, 0, 0, time.UTC),
+				},
+				{
+					SourceName:  "dzen",
+					ExternalID:  "fresh",
+					URL:         "https://dzen.ru/a/fresh",
+					Title:       "Новости про Китай",
+					PublishedAt: time.Date(2026, 7, 7, 10, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+	})
+	fromDate := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	toDate := time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)
+
+	result, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:     "новости китай",
+		Sources:  []string{"dzen"},
+		Limit:    10,
+		FromDate: &fromDate,
+		ToDate:   &toDate,
+	})
+
+	if err != nil {
+		t.Fatalf("search and publish failed: %v", err)
+	}
+	if len(result.Candidates) != 1 {
+		t.Fatalf("expected 1 fresh candidate, got %d: %#v", len(result.Candidates), result.Candidates)
+	}
+	if result.Candidates[0].ExternalID != "fresh" {
+		t.Fatalf("unexpected candidate: %#v", result.Candidates[0])
+	}
+	stat := result.SourceStats[0]
+	if stat.FoundCount != 2 || stat.AcceptedCount != 1 || stat.FilteredCount != 1 || stat.PublishedCount != 1 {
+		t.Fatalf("unexpected date filter stats: %#v", stat)
+	}
+	if len(producer.Messages()) != 1 {
+		t.Fatalf("expected one published fresh candidate, got %d", len(producer.Messages()))
+	}
+}
+
 func TestSelectedSourcesUsesParserRegistrationOrderWhenQueryOmitsSources(t *testing.T) {
 	usecase := NewUsecase(articleflowkafka.NewMemoryProducer(), []Parser{
 		fakeParser{sourceName: "habr"},

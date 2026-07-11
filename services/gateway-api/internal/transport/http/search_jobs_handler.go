@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
@@ -17,9 +18,11 @@ type ParserJobClient interface {
 }
 
 type SearchJobRequest struct {
-	Query   string   `json:"query"`
-	Sources []string `json:"sources"`
-	Limit   int      `json:"limit"`
+	Query    string     `json:"query"`
+	Sources  []string   `json:"sources"`
+	Limit    int        `json:"limit"`
+	FromDate *time.Time `json:"from_date"`
+	ToDate   *time.Time `json:"to_date"`
 }
 
 type SearchJobResponse struct {
@@ -54,9 +57,11 @@ func startSearchJob(response http.ResponseWriter, request *http.Request, client 
 		return
 	}
 	query := parserv1.SearchQuery{
-		Text:    strings.TrimSpace(payload.Query),
-		Sources: payload.Sources,
-		Limit:   payload.Limit,
+		Text:     strings.TrimSpace(payload.Query),
+		Sources:  payload.Sources,
+		Limit:    payload.Limit,
+		FromDate: payload.FromDate,
+		ToDate:   payload.ToDate,
 	}
 	job, err := client.StartAsync(request.Context(), query)
 	if err != nil {

@@ -121,6 +121,28 @@ func TestFeedHandlerSearchesStoredArticlesForQueryFeed(t *testing.T) {
 	}
 }
 
+func TestFeedHandlerPassesDateFiltersToQueryFeed(t *testing.T) {
+	searcher := &fakeFeedSearchProvider{}
+	handler := NewFeedHandlerWithRefill(FeedHandlerDependencies{
+		FeedProvider:   fakeFeedProvider{},
+		SearchProvider: searcher,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/feed?query=новости&from_date=2026-07-01T00:00:00Z&to_date=2026-07-11T00:00:00Z", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	if searcher.query.FromDate == nil || !searcher.query.FromDate.Equal(time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("unexpected from date: %#v", searcher.query.FromDate)
+	}
+	if searcher.query.ToDate == nil || !searcher.query.ToDate.Equal(time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("unexpected to date: %#v", searcher.query.ToDate)
+	}
+}
+
 func TestFeedHandlerStartsBackgroundRefillWhenQueryFeedIsThin(t *testing.T) {
 	searcher := &fakeFeedSearchProvider{}
 	refiller := &fakeFeedRefillStarter{job: parserv1.ParserJob{

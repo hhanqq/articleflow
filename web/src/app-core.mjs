@@ -56,17 +56,26 @@ export function normalizeArticle(raw = {}) {
   };
 }
 
-export function buildSearchJobPayload({ query, sources, limit }) {
+export function buildSearchJobPayload({ query, sources, limit, fromDate, toDate }) {
   const normalizedQuery = String(query ?? "").trim();
   if (!normalizedQuery) {
     throw new Error("query is required");
   }
   const parsedLimit = Number.parseInt(String(limit ?? "5"), 10);
-  return {
+  const payload = {
     query: normalizedQuery,
     sources: Array.isArray(sources) ? sources.filter(Boolean) : [],
     limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 5,
   };
+  const normalizedFromDate = String(fromDate ?? "").trim();
+  const normalizedToDate = String(toDate ?? "").trim();
+  if (normalizedFromDate) {
+    payload.from_date = normalizedFromDate;
+  }
+  if (normalizedToDate) {
+    payload.to_date = normalizedToDate;
+  }
+  return payload;
 }
 
 export function buildSelectedSources({ allSelected, selected }) {
@@ -86,7 +95,7 @@ export function buildSelectedSources({ allSelected, selected }) {
   return unique;
 }
 
-export function buildFeedQueryPath({ query, sources, limit, cursor, refill } = {}) {
+export function buildFeedQueryPath({ query, sources, limit, cursor, fromDate, toDate, refill } = {}) {
   const params = new URLSearchParams();
   const parsedLimit = Number.parseInt(String(limit ?? "30"), 10);
   params.set("limit", String(Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 30));
@@ -103,10 +112,33 @@ export function buildFeedQueryPath({ query, sources, limit, cursor, refill } = {
   if (normalizedCursor) {
     params.set("cursor", normalizedCursor);
   }
+  const normalizedFromDate = String(fromDate ?? "").trim();
+  if (normalizedFromDate) {
+    params.set("from_date", normalizedFromDate);
+  }
+  const normalizedToDate = String(toDate ?? "").trim();
+  if (normalizedToDate) {
+    params.set("to_date", normalizedToDate);
+  }
   if (refill) {
     params.set("refill", "true");
   }
   return `/api/v1/feed?${params.toString()}`;
+}
+
+export function buildFreshnessRange(value, now = new Date()) {
+  const daysByValue = new Map([
+    ["day", 1],
+    ["week", 7],
+    ["month", 30],
+    ["year", 365],
+  ]);
+  const days = daysByValue.get(String(value ?? "").trim());
+  if (!days) {
+    return {};
+  }
+  const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  return { fromDate: from.toISOString() };
 }
 
 export function normalizeSourceStats(raw = {}) {

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildFeedQueryPath,
+  buildFreshnessRange,
   buildReactionPayload,
   buildSearchJobPayload,
   buildSelectedSources,
@@ -105,6 +106,19 @@ test("buildSearchJobPayload trims query and keeps selected sources", () => {
   });
 });
 
+test("buildSearchJobPayload includes date filters when provided", () => {
+  const payload = buildSearchJobPayload({
+    query: "  новости  ",
+    sources: ["dzen"],
+    limit: "5",
+    fromDate: "2026-07-01T00:00:00.000Z",
+    toDate: "2026-07-11T00:00:00.000Z",
+  });
+
+  assert.equal(payload.from_date, "2026-07-01T00:00:00.000Z");
+  assert.equal(payload.to_date, "2026-07-11T00:00:00.000Z");
+});
+
 test("buildSelectedSources uses empty list for all sources", () => {
   assert.deepEqual(buildSelectedSources({ allSelected: true, selected: ["habr", "vc"] }), []);
 });
@@ -124,13 +138,26 @@ test("buildFeedQueryPath builds cursor feed URL for query scrolling", () => {
       limit: 10,
       cursor: "offset:20",
       refill: true,
+      fromDate: "2026-07-01T00:00:00.000Z",
     }),
-    "/api/v1/feed?limit=10&query=go+kafka&sources=habr%2Cvc&cursor=offset%3A20&refill=true",
+    "/api/v1/feed?limit=10&query=go+kafka&sources=habr%2Cvc&cursor=offset%3A20&from_date=2026-07-01T00%3A00%3A00.000Z&refill=true",
   );
 });
 
 test("buildFeedQueryPath omits empty optional params", () => {
   assert.equal(buildFeedQueryPath({ limit: "bad", sources: [], cursor: "" }), "/api/v1/feed?limit=30");
+});
+
+test("buildFreshnessRange maps presets to from_date values", () => {
+  const now = new Date("2026-07-11T12:00:00.000Z");
+
+  assert.deepEqual(buildFreshnessRange("all", now), {});
+  assert.deepEqual(buildFreshnessRange("week", now), {
+    fromDate: "2026-07-04T12:00:00.000Z",
+  });
+  assert.deepEqual(buildFreshnessRange("month", now), {
+    fromDate: "2026-06-11T12:00:00.000Z",
+  });
 });
 
 test("normalizeSourceStats accepts Go JSON field names", () => {

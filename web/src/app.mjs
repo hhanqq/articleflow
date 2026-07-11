@@ -1,5 +1,6 @@
 import {
   buildFeedQueryPath,
+  buildFreshnessRange,
   buildReactionPayload,
   buildSearchJobPayload,
   buildSelectedSources,
@@ -30,6 +31,8 @@ const state = {
   feedQuery: "",
   feedSources: [],
   feedLimit: 30,
+  feedFromDate: "",
+  feedToDate: "",
   nextCursor: "",
   feedLoadingMore: false,
   feedHasMore: false,
@@ -51,6 +54,7 @@ const elements = {
   runParserJob: document.querySelector("#runParserJob"),
   searchQuery: document.querySelector("#searchQuery"),
   searchLimit: document.querySelector("#searchLimit"),
+  searchFreshness: document.querySelector("#searchFreshness"),
   jobStatus: document.querySelector("#jobStatus"),
   jobMeta: document.querySelector("#jobMeta"),
   refreshJobs: document.querySelector("#refreshJobs"),
@@ -186,6 +190,7 @@ async function startSearchJob() {
       query: elements.searchQuery.value,
       sources: selectedSources(),
       limit: elements.searchLimit.value,
+      ...selectedFreshnessRange(),
     });
     const jobPayload = await requestJSON("/api/v1/search/jobs", {
       method: "POST",
@@ -210,16 +215,21 @@ async function searchStoredArticles() {
       query: elements.searchQuery.value,
       sources: selectedSources(),
       limit: elements.searchLimit.value,
+      ...selectedFreshnessRange(),
     });
     state.feedQuery = searchPayload.query;
     state.feedSources = searchPayload.sources;
     state.feedLimit = searchPayload.limit;
+    state.feedFromDate = searchPayload.from_date || "";
+    state.feedToDate = searchPayload.to_date || "";
     state.nextCursor = "";
     state.feedHasMore = false;
     const payload = await requestJSON(buildFeedQueryPath({
       query: state.feedQuery,
       sources: state.feedSources,
       limit: state.feedLimit,
+      fromDate: state.feedFromDate,
+      toDate: state.feedToDate,
       refill: true,
     }));
     state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
@@ -253,6 +263,8 @@ async function loadMoreFeed() {
       sources: state.feedSources,
       limit: state.feedLimit,
       cursor: state.nextCursor,
+      fromDate: state.feedFromDate,
+      toDate: state.feedToDate,
       refill: true,
     }));
     const nextItems = (payload.items || payload.Items || []).map(normalizeFeedItem);
@@ -441,6 +453,9 @@ function renderFeedPaging(payload = {}) {
   if (state.feedQuery) {
     parts.push(`query: ${state.feedQuery}`);
   }
+  if (state.feedFromDate) {
+    parts.push(`from: ${formatDate(state.feedFromDate) || state.feedFromDate}`);
+  }
   if (nextCursor) {
     parts.push(`next: ${nextCursor}`);
   }
@@ -455,6 +470,8 @@ function resetFeedPaging() {
   state.feedQuery = "";
   state.feedSources = [];
   state.feedLimit = 30;
+  state.feedFromDate = "";
+  state.feedToDate = "";
   state.nextCursor = "";
   state.feedLoadingMore = false;
   state.feedHasMore = false;
@@ -612,6 +629,10 @@ function selectedSources() {
     allSelected: elements.sourceAll.checked,
     selected: sourceOptions().filter((option) => option.checked).map((option) => option.value),
   });
+}
+
+function selectedFreshnessRange() {
+  return buildFreshnessRange(elements.searchFreshness?.value || "all");
 }
 
 function syncSourceControls() {

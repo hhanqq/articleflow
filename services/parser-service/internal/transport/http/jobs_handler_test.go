@@ -65,6 +65,48 @@ func TestJobsHandlerCreatesParserJob(t *testing.T) {
 	}
 }
 
+type recordingJobManager struct {
+	query parserv1.SearchQuery
+}
+
+func (manager *recordingJobManager) StartAsync(_ context.Context, query parserv1.SearchQuery) (parserv1.ParserJob, error) {
+	manager.query = query
+	return parserv1.ParserJob{ID: "parser-job-dates", Status: parserv1.ParserJobStatusQueued, Query: query}, nil
+}
+
+func (manager *recordingJobManager) Get(context.Context, string) (parserv1.ParserJob, bool, error) {
+	return parserv1.ParserJob{}, false, nil
+}
+
+func (manager *recordingJobManager) List(context.Context, int) ([]parserv1.ParserJob, error) {
+	return nil, nil
+}
+
+func TestJobsHandlerCreatesParserJobWithDateFilters(t *testing.T) {
+	manager := &recordingJobManager{}
+	handler := NewJobsHandler(manager)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/parser/jobs", bytes.NewBufferString(`{
+		"query":"новости",
+		"sources":["dzen"],
+		"limit":5,
+		"from_date":"2026-07-01T00:00:00Z",
+		"to_date":"2026-07-11T00:00:00Z"
+	}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected status 202, got %d", response.Code)
+	}
+	if manager.query.FromDate == nil || !manager.query.FromDate.Equal(time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("unexpected from date: %#v", manager.query.FromDate)
+	}
+	if manager.query.ToDate == nil || !manager.query.ToDate.Equal(time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("unexpected to date: %#v", manager.query.ToDate)
+	}
+}
+
 func TestJobsHandlerReturnsParserJobStatus(t *testing.T) {
 	handler := NewJobsHandler(fakeJobManager{
 		job: parserv1.ParserJob{

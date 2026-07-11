@@ -81,6 +81,10 @@ func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.Sea
 				sourceStats.FilteredCount++
 				continue
 			}
+			if !candidateWithinDateRange(candidate, query) {
+				sourceStats.FilteredCount++
+				continue
+			}
 			keys := candidateDedupKeys(candidate)
 			if hasSeenCandidate(seenCandidates, keys) {
 				sourceStats.FilteredCount++
@@ -190,6 +194,19 @@ func (usecase *Usecase) selectedSources(query parserv1.SearchQuery) []string {
 		return sources
 	}
 	return append([]string(nil), usecase.sourceOrder...)
+}
+
+func candidateWithinDateRange(candidate parserv1.ArticleCandidate, query parserv1.SearchQuery) bool {
+	if candidate.PublishedAt.IsZero() {
+		return true
+	}
+	if query.FromDate != nil && candidate.PublishedAt.Before(query.FromDate.UTC()) {
+		return false
+	}
+	if query.ToDate != nil && candidate.PublishedAt.After(query.ToDate.UTC()) {
+		return false
+	}
+	return true
 }
 
 func sourceStrategy(parser Parser) string {

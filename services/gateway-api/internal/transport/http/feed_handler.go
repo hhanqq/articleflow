@@ -84,7 +84,18 @@ func handleQueryFeed(response http.ResponseWriter, request *http.Request, depend
 		Sources: parseCSVQueryValues(request, "sources"),
 		Limit:   limit,
 		Offset:  parseFeedCursor(request.URL.Query().Get("cursor")),
-	}.Normalize()
+	}
+	fromDate, ok := parseOptionalTimeQuery(response, request, "from_date")
+	if !ok {
+		return
+	}
+	toDate, ok := parseOptionalTimeQuery(response, request, "to_date")
+	if !ok {
+		return
+	}
+	query.FromDate = fromDate
+	query.ToDate = toDate
+	query = query.Normalize()
 	candidates, err := dependencies.SearchProvider.Search(query)
 	if err != nil {
 		http.Error(response, "feed search failed", http.StatusBadGateway)
@@ -205,6 +216,20 @@ func parseFeedCursor(rawCursor string) int {
 		return 0
 	}
 	return offset
+}
+
+func parseOptionalTimeQuery(response http.ResponseWriter, request *http.Request, key string) (*time.Time, bool) {
+	rawValue := strings.TrimSpace(request.URL.Query().Get(key))
+	if rawValue == "" {
+		return nil, true
+	}
+	parsed, err := time.Parse(time.RFC3339, rawValue)
+	if err != nil {
+		http.Error(response, key+" must be an RFC3339 timestamp", http.StatusBadRequest)
+		return nil, false
+	}
+	parsed = parsed.UTC()
+	return &parsed, true
 }
 
 func nextFeedCursor(currentOffset int, returnedCount int, limit int) string {

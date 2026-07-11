@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
 )
@@ -53,6 +54,48 @@ func TestSearchJobsHandlerStartsParserJob(t *testing.T) {
 	}
 	if payload.Job.ID != "parser-job-1" {
 		t.Fatalf("unexpected job id: %s", payload.Job.ID)
+	}
+}
+
+type recordingParserJobClient struct {
+	query parserv1.SearchQuery
+}
+
+func (client *recordingParserJobClient) StartAsync(_ context.Context, query parserv1.SearchQuery) (parserv1.ParserJob, error) {
+	client.query = query
+	return parserv1.ParserJob{ID: "parser-job-dates", Status: parserv1.ParserJobStatusQueued}, nil
+}
+
+func (client *recordingParserJobClient) Get(context.Context, string) (parserv1.ParserJob, bool, error) {
+	return parserv1.ParserJob{}, false, nil
+}
+
+func (client *recordingParserJobClient) List(context.Context, int) ([]parserv1.ParserJob, error) {
+	return nil, nil
+}
+
+func TestSearchJobsHandlerStartsParserJobWithDateFilters(t *testing.T) {
+	client := &recordingParserJobClient{}
+	handler := NewSearchJobsHandler(client)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/search/jobs", bytes.NewBufferString(`{
+		"query":"новости",
+		"sources":["dzen"],
+		"limit":5,
+		"from_date":"2026-07-01T00:00:00Z",
+		"to_date":"2026-07-11T00:00:00Z"
+	}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected status 202, got %d", response.Code)
+	}
+	if client.query.FromDate == nil || !client.query.FromDate.Equal(time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("unexpected from date: %#v", client.query.FromDate)
+	}
+	if client.query.ToDate == nil || !client.query.ToDate.Equal(time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("unexpected to date: %#v", client.query.ToDate)
 	}
 }
 
