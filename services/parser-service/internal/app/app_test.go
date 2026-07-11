@@ -3,6 +3,7 @@ package app
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hanq/articleflow/services/parser-service/internal/config"
@@ -68,5 +69,26 @@ func TestHandlerExposesMetricsRoute(t *testing.T) {
 	}
 	if response.Body.String() == "" {
 		t.Fatal("expected metrics body")
+	}
+}
+
+func TestHandlerExposesSourceStateMetrics(t *testing.T) {
+	handler := New(config.Config{
+		ServiceName:        "parser-service",
+		HTTPAddr:           ":0",
+		KafkaBrokers:       "localhost:9092",
+		StorageDriver:      "memory",
+		HabrBaseURL:        "https://habr.com",
+		HabrMaxAttempts:    1,
+		HabrRequestDelayMS: 0,
+	}).Handler()
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	body := response.Body.String()
+	if !strings.Contains(body, "articleflow_parser_source_enabled") {
+		t.Fatalf("expected source state metric, got %q", body)
 	}
 }

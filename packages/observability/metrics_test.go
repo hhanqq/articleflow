@@ -19,6 +19,22 @@ func TestMetricsRegistryCountsValues(t *testing.T) {
 	}
 }
 
+func TestMetricsRegistrySetsGaugeValues(t *testing.T) {
+	metrics := NewMetricsRegistry()
+	metrics.SetGaugeLabels("articleflow_parser_source_enabled", map[string]string{
+		"source": "vc",
+	}, 1)
+	metrics.SetGaugeLabels("articleflow_parser_source_enabled", map[string]string{
+		"source": "vc",
+	}, 0)
+
+	snapshot := metrics.Snapshot()
+
+	if snapshot[`articleflow_parser_source_enabled{source="vc"}`] != 0 {
+		t.Fatalf("expected gauge 0, got %f", snapshot[`articleflow_parser_source_enabled{source="vc"}`])
+	}
+}
+
 func TestPrometheusHandlerRendersCounters(t *testing.T) {
 	metrics := NewMetricsRegistry()
 	metrics.Inc("articleflow_requests_total")

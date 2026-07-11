@@ -50,12 +50,14 @@ func (app *App) handlerWithManager(manager *jobs.Manager, metrics *observability
 		metrics = observability.NewMetricsRegistry()
 	}
 	metrics.Inc("articleflow_service_info")
+	sourceMetrics := httptransport.NewObservabilitySourceMetrics(metrics)
+	sourceMetrics.ObserveSourceSnapshot(runtimeSources.List())
 
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler(app.cfg.ServiceName))
 	mux.Handle("/metrics", observability.NewPrometheusHandler(app.cfg.ServiceName, metrics))
-	mux.Handle("/api/v1/parser/sources", httptransport.NewSourcesHandler(runtimeSources))
-	mux.Handle("/api/v1/parser/sources/", httptransport.NewSourcesHandler(runtimeSources))
+	mux.Handle("/api/v1/parser/sources", httptransport.NewSourcesHandlerWithMetrics(runtimeSources, sourceMetrics))
+	mux.Handle("/api/v1/parser/sources/", httptransport.NewSourcesHandlerWithMetrics(runtimeSources, sourceMetrics))
 	jobsHandler := httptransport.NewJobsHandler(manager)
 	mux.Handle("/api/v1/parser/jobs", jobsHandler)
 	mux.Handle("/api/v1/parser/jobs/", jobsHandler)

@@ -35,6 +35,20 @@ func (registry *MetricsRegistry) AddLabels(name string, labels map[string]string
 	registry.counters[metricKey(name, labels)] += value
 }
 
+func (registry *MetricsRegistry) SetGauge(name string, value float64) {
+	registry.SetGaugeLabels(name, nil, value)
+}
+
+func (registry *MetricsRegistry) SetGaugeLabels(name string, labels map[string]string, value float64) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+	registry.counters[metricKey(name, labels)] = value
+}
+
 func (registry *MetricsRegistry) Snapshot() map[string]float64 {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()

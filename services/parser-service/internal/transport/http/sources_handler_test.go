@@ -11,6 +11,19 @@ import (
 	"github.com/hanq/articleflow/services/parser-service/internal/sources"
 )
 
+type fakeSourceMetrics struct {
+	updates []sourceMetricsUpdate
+}
+
+type sourceMetricsUpdate struct {
+	name    string
+	enabled bool
+}
+
+func (metrics *fakeSourceMetrics) ObserveSourceEnabled(name string, enabled bool) {
+	metrics.updates = append(metrics.updates, sourceMetricsUpdate{name: name, enabled: enabled})
+}
+
 func TestSourcesHandlerListsParserSources(t *testing.T) {
 	handler := NewSourcesHandler(sources.NewRuntimeRegistry([]parserv1.ParserSource{
 		{Name: "habr", DisplayName: "Habr", Kind: "html_rss", Enabled: true, Searchable: true},
@@ -40,7 +53,8 @@ func TestSourcesHandlerUpdatesSourceEnabledState(t *testing.T) {
 	registry := sources.NewRuntimeRegistry([]parserv1.ParserSource{
 		{Name: "vc", DisplayName: "vc.ru", Kind: "html", Enabled: true, Searchable: true},
 	})
-	handler := NewSourcesHandler(registry)
+	metrics := &fakeSourceMetrics{}
+	handler := NewSourcesHandlerWithMetrics(registry, metrics)
 	request := httptest.NewRequest(http.MethodPatch, "/api/v1/parser/sources/vc", bytes.NewBufferString(`{"enabled":false}`))
 	response := httptest.NewRecorder()
 
@@ -58,5 +72,8 @@ func TestSourcesHandlerUpdatesSourceEnabledState(t *testing.T) {
 	}
 	if registry.Enabled("vc") {
 		t.Fatal("expected registry source disabled")
+	}
+	if len(metrics.updates) != 1 || metrics.updates[0].name != "vc" || metrics.updates[0].enabled {
+		t.Fatalf("expected source metrics update for disabled vc, got %#v", metrics.updates)
 	}
 }

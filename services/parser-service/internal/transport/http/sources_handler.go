@@ -26,19 +26,23 @@ type sourceUpdateRequest struct {
 }
 
 func NewSourcesHandler(registry SourceRegistry) http.Handler {
+	return NewSourcesHandlerWithMetrics(registry, nil)
+}
+
+func NewSourcesHandlerWithMetrics(registry SourceRegistry, metrics SourceMetrics) http.Handler {
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		switch request.Method {
 		case http.MethodGet:
 			writeJSON(response, http.StatusOK, SourcesResponse{Sources: registry.List()})
 		case http.MethodPatch:
-			updateSource(response, request, registry)
+			updateSource(response, request, registry, metrics)
 		default:
 			http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 }
 
-func updateSource(response http.ResponseWriter, request *http.Request, registry SourceRegistry) {
+func updateSource(response http.ResponseWriter, request *http.Request, registry SourceRegistry, metrics SourceMetrics) {
 	name := strings.TrimPrefix(request.URL.Path, "/api/v1/parser/sources/")
 	name = strings.TrimSpace(name)
 	if name == "" || name == request.URL.Path {
@@ -54,6 +58,9 @@ func updateSource(response http.ResponseWriter, request *http.Request, registry 
 	if !ok {
 		http.Error(response, "source not found", http.StatusNotFound)
 		return
+	}
+	if metrics != nil {
+		metrics.ObserveSourceEnabled(source.Name, source.Enabled)
 	}
 	writeJSON(response, http.StatusOK, SourceResponse{Source: source})
 }
