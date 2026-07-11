@@ -10,3 +10,7 @@ deployments/env/*.env
 tmp/
 dist/
 __pycache__/
+node_modules/
+web/node_modules/
+web/test-results/
+web/playwright-report/

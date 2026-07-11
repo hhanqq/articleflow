@@ -361,11 +361,14 @@ make publish-sample-discovered
 QUERY="go kafka" LIMIT=5 make search-habr
 make e2e-article-chain
 make e2e-ranking-feed
+make e2e-personalized-feed
+REQUESTS=20 make load-feed-smoke
+ARTICLEFLOW_WEB_BASE_URL=http://localhost:5173 make web-e2e
 docker compose -f deployments/docker-compose.yml config
 docker compose -f deployments/docker-compose.yml up -d
 ```
 
-`make ci` is the fast gate used by GitHub Actions: Go tests, web tests, Docker Compose config validation, and whitespace checks. Runtime e2e checks remain available through `make e2e-article-chain`, `make e2e-ranking-feed`, and `make dev-smoke`.
+`make ci` is the fast gate used by GitHub Actions: Go tests, web tests, Docker Compose config validation, and whitespace checks. Runtime checks are explicit because they require a running stack: `make e2e-article-chain`, `make e2e-ranking-feed`, `make e2e-personalized-feed`, `make load-feed-smoke`, `make web-e2e`, and `make dev-smoke`.
 
 Every HTTP service exposes Prometheus-style metrics:
 

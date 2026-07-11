@@ -10,7 +10,7 @@ export GOCACHE := $(PROJECT_ROOT)/.cache/go-build
 export GOBIN := $(PROJECT_ROOT)/.bin
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: env env-init test web-test ci compose-config migrate-up app-up app-down web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed
+.PHONY: env env-init test web-test ci compose-config migrate-up app-up app-down web dev-start dev-stop dev-status dev-smoke tidy work-sync tools proto up down publish-sample-discovered search-habr e2e-article-chain e2e-ranking-feed e2e-personalized-feed load-feed-smoke web-e2e
 
 env:
 	@mkdir -p "$(GOPATH)" "$(GOMODCACHE)" "$(GOCACHE)" "$(GOBIN)"
@@ -104,3 +104,12 @@ e2e-article-chain: env
 
 e2e-ranking-feed: env
 	bash scripts/e2e_ranking_feed.sh
+
+e2e-personalized-feed:
+	bash scripts/e2e_personalized_feed.sh
+
+load-feed-smoke:
+	bash scripts/load_feed_smoke.sh
+
+web-e2e:
+	cd web && npm run e2e
