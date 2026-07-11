@@ -47,7 +47,7 @@ func BuildRegistry(cfg config.Config) Registry {
 		Language:    "ru",
 		URLSearcher: buildVCURLSearcher(cfg),
 	}))
-	add(SourceInfo{Name: "dzen", DisplayName: "Dzen", Kind: "html"}, dzen.NewClient(dzen.ClientOptions{
+	add(SourceInfo{Name: "dzen", DisplayName: "Яндекс Дзен", Kind: "html"}, dzen.NewClient(dzen.ClientOptions{
 		BaseURL:  cfg.DzenBaseURL,
 		Language: "ru",
 	}))

@@ -59,6 +59,9 @@ func TestBuildRegistryListsSourcesAndExcludesDisabledParsers(t *testing.T) {
 	if byName["dzen"].Kind != "html" || !byName["dzen"].Enabled {
 		t.Fatalf("unexpected dzen source info: %#v", byName["dzen"])
 	}
+	if byName["dzen"].DisplayName != "Яндекс Дзен" {
+		t.Fatalf("expected readable dzen display name, got %#v", byName["dzen"])
+	}
 	if byName["dzen_rss"].Kind != "rss" || !byName["dzen_rss"].Enabled {
 		t.Fatalf("unexpected dzen rss source info: %#v", byName["dzen_rss"])
 	}

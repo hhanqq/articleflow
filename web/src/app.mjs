@@ -661,6 +661,7 @@ function fallbackSources() {
   return [
     { name: "habr", displayName: "Habr", enabled: true, searchable: true },
     { name: "vc", displayName: "vc.ru", enabled: true, searchable: true },
+    { name: "dzen", displayName: "Яндекс Дзен", enabled: true, searchable: true },
     { name: "vc_rss", displayName: "vc RSS", enabled: true, searchable: true },
   ];
 }
