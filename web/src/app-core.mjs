@@ -141,6 +141,62 @@ export function buildFreshnessRange(value, now = new Date()) {
   return { fromDate: from.toISOString() };
 }
 
+export function applyLocalFeedReaction(items, articleID, type) {
+  const normalizedID = String(articleID ?? "").trim();
+  const normalizedType = String(type ?? "").trim();
+  const list = Array.isArray(items) ? items : [];
+  if (!normalizedID || !REACTION_TYPES.has(normalizedType)) {
+    return list;
+  }
+  if (normalizedType === "skip") {
+    return list.filter((item) => (item.id || item.url) !== normalizedID);
+  }
+  return list.map((item) => {
+    if ((item.id || item.url) !== normalizedID) {
+      return item;
+    }
+    return {
+      ...item,
+      reaction: normalizedType,
+      saved: normalizedType === "save" ? true : item.saved,
+    };
+  });
+}
+
+export function buildFeedStatusParts({
+  query,
+  sources,
+  fromDate,
+  nextCursor,
+  refillStarted,
+  refillJobID,
+  formatDateValue = formatDate,
+} = {}) {
+  const parts = [];
+  const normalizedQuery = String(query ?? "").trim();
+  if (normalizedQuery) {
+    parts.push(`query: ${normalizedQuery}`);
+  }
+  const selectedSources = Array.isArray(sources) ? sources.filter(Boolean) : [];
+  if (selectedSources.length > 0) {
+    parts.push(`sources: ${selectedSources.join(", ")}`);
+  }
+  const normalizedFromDate = String(fromDate ?? "").trim();
+  if (normalizedFromDate) {
+    parts.push(`from: ${formatDateValue(normalizedFromDate) || normalizedFromDate}`);
+  }
+  const normalizedCursor = String(nextCursor ?? "").trim();
+  if (normalizedCursor) {
+    parts.push(`next: ${normalizedCursor}`);
+  }
+  if (refillJobID) {
+    parts.push(`refill: ${refillJobID}`);
+  } else if (refillStarted) {
+    parts.push("refill started");
+  }
+  return parts;
+}
+
 export function normalizeSourceStats(raw = {}) {
   return {
     sourceName: String(raw.SourceName ?? raw.source_name ?? ""),

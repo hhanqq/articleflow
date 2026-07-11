@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  applyLocalFeedReaction,
   buildFeedQueryPath,
+  buildFeedStatusParts,
   buildFreshnessRange,
   buildReactionPayload,
   buildSearchJobPayload,
@@ -158,6 +160,38 @@ test("buildFreshnessRange maps presets to from_date values", () => {
   assert.deepEqual(buildFreshnessRange("month", now), {
     fromDate: "2026-06-11T12:00:00.000Z",
   });
+});
+
+test("applyLocalFeedReaction hides skipped cards and marks saved cards", () => {
+  const items = [
+    { id: "dzen:1", title: "First" },
+    { id: "vc:2", title: "Second" },
+  ];
+
+  assert.deepEqual(applyLocalFeedReaction(items, "dzen:1", "skip"), [
+    { id: "vc:2", title: "Second" },
+  ]);
+  assert.deepEqual(applyLocalFeedReaction(items, "vc:2", "save"), [
+    { id: "dzen:1", title: "First" },
+    { id: "vc:2", title: "Second", reaction: "save", saved: true },
+  ]);
+});
+
+test("buildFeedStatusParts includes query sources freshness and refill", () => {
+  assert.deepEqual(buildFeedStatusParts({
+    query: "go kafka",
+    sources: ["habr", "dzen"],
+    fromDate: "2026-07-01T00:00:00Z",
+    nextCursor: "offset:20",
+    refillJobID: "parser-job-1",
+    formatDateValue: () => "formatted-date",
+  }), [
+    "query: go kafka",
+    "sources: habr, dzen",
+    "from: formatted-date",
+    "next: offset:20",
+    "refill: parser-job-1",
+  ]);
 });
 
 test("normalizeSourceStats accepts Go JSON field names", () => {

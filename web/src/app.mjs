@@ -1,5 +1,7 @@
 import {
+  applyLocalFeedReaction,
   buildFeedQueryPath,
+  buildFeedStatusParts,
   buildFreshnessRange,
   buildReactionPayload,
   buildSearchJobPayload,
@@ -375,6 +377,13 @@ async function sendReaction(articleID, type) {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    state.items = applyLocalFeedReaction(state.items, articleID, type);
+    if (type === "skip") {
+      renderFeed();
+      renderFeedPaging();
+      return;
+    }
+    renderFeed();
     markReaction(articleID, type);
   } catch (error) {
     setError(error.message);
@@ -450,19 +459,14 @@ function renderFeedPaging(payload = {}) {
       ? "Загрузить еще"
       : "Больше нет";
   const parts = [];
-  if (state.feedQuery) {
-    parts.push(`query: ${state.feedQuery}`);
-  }
-  if (state.feedFromDate) {
-    parts.push(`from: ${formatDate(state.feedFromDate) || state.feedFromDate}`);
-  }
-  if (nextCursor) {
-    parts.push(`next: ${nextCursor}`);
-  }
-  if (refillStarted) {
-    const jobID = payload.refill_job?.ID ?? payload.RefillJob?.ID ?? payload.refill_job?.id ?? "";
-    parts.push(jobID ? `refill: ${jobID}` : "refill started");
-  }
+  parts.push(...buildFeedStatusParts({
+    query: state.feedQuery,
+    sources: state.feedSources,
+    fromDate: state.feedFromDate,
+    nextCursor,
+    refillStarted,
+    refillJobID: payload.refill_job?.ID ?? payload.RefillJob?.ID ?? payload.refill_job?.id ?? "",
+  }));
   elements.feedPageStatus.textContent = parts.join(" | ");
 }
 
@@ -493,12 +497,14 @@ function renderArticle(item) {
   const tags = item.tags.map((tag) => `<span>${escapeHTML(tag)}</span>`).join("");
   const reasons = item.scoreReasons.map((reason) => `<span>${escapeHTML(reason)}</span>`).join("");
   const date = formatDate(item.publishedAt);
+  const reaction = item.reaction ? `<span class="reaction-chip">${escapeHTML(reactionLabel(item.reaction))}</span>` : "";
   return `
     <article class="feed-item" data-article-id="${escapeHTML(item.id)}">
       <div class="feed-item__meta">
         <span>${escapeHTML(item.sourceName || "source")}</span>
         <span>score ${formatScore(item.score)}</span>
         ${date ? `<span>${escapeHTML(date)}</span>` : ""}
+        ${reaction}
       </div>
       <h2>${escapeHTML(item.title)}</h2>
       <p>${escapeHTML(stripHTML(item.summary)).slice(0, 420)}</p>
@@ -690,7 +696,24 @@ function fallbackSources() {
 function markReaction(articleID, type) {
   const output = elements.feed.querySelector(`[data-article-id="${cssEscape(articleID)}"] .reaction-state`);
   if (output) {
-    output.textContent = `Отправлено: ${type}`;
+    output.textContent = reactionLabel(type);
+  }
+}
+
+function reactionLabel(type) {
+  switch (type) {
+    case "save":
+      return "Сохранено";
+    case "like":
+      return "Нравится";
+    case "dislike":
+      return "Не интересно";
+    case "open":
+      return "Открыто";
+    case "skip":
+      return "Скрыто";
+    default:
+      return `Отправлено: ${type}`;
   }
 }
 

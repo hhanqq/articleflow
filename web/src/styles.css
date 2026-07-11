@@ -209,6 +209,11 @@ h2 {
   background: var(--surface-2);
 }
 
+.feed-item__meta .reaction-chip {
+  border-color: rgba(18, 107, 92, 0.28);
+  color: var(--accent);
+}
+
 .feed-item h2 {
   max-width: 980px;
   font-size: clamp(28px, 4vw, 54px);
