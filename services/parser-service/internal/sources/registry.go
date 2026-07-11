@@ -16,8 +16,9 @@ import (
 type SourceInfo = parserv1.ParserSource
 
 type Registry struct {
-	Parsers []search.Parser
-	Sources []SourceInfo
+	Parsers    []search.Parser
+	AllParsers []search.Parser
+	Sources    []SourceInfo
 }
 
 func BuildParsers(cfg config.Config) []search.Parser {
@@ -31,8 +32,11 @@ func BuildRegistry(cfg config.Config) Registry {
 		info.Enabled = !disabled[info.Name]
 		info.Searchable = true
 		registry.Sources = append(registry.Sources, info)
-		if info.Enabled && parser != nil {
-			registry.Parsers = append(registry.Parsers, parser)
+		if parser != nil {
+			registry.AllParsers = append(registry.AllParsers, parser)
+			if info.Enabled {
+				registry.Parsers = append(registry.Parsers, parser)
+			}
 		}
 	}
 

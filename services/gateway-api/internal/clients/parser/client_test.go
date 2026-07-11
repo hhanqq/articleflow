@@ -1,8 +1,10 @@
 package parserclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -132,5 +134,37 @@ func TestClientListsParserSources(t *testing.T) {
 	}
 	if sources[0].Name != "habr" {
 		t.Fatalf("unexpected source: %#v", sources[0])
+	}
+}
+
+func TestClientUpdatesParserSourceEnabledState(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", request.Method)
+		}
+		if request.URL.Path != "/api/v1/parser/sources/vc" {
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+		}
+		body, _ := io.ReadAll(request.Body)
+		if !bytes.Contains(body, []byte(`"enabled":false`)) {
+			t.Fatalf("expected enabled=false body, got %s", string(body))
+		}
+		_ = json.NewEncoder(response).Encode(sourceResponse{Source: parserv1.ParserSource{
+			Name: "vc", DisplayName: "vc.ru", Enabled: false, Searchable: true,
+		}})
+	}))
+	defer server.Close()
+	client := New(server.URL, server.Client())
+
+	source, ok, err := client.SetSourceEnabled(context.Background(), "vc", false)
+
+	if err != nil {
+		t.Fatalf("update source: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected source found")
+	}
+	if source.Name != "vc" || source.Enabled {
+		t.Fatalf("unexpected source: %#v", source)
 	}
 }

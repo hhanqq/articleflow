@@ -38,6 +38,14 @@ type sourcesResponse struct {
 	Sources []parserv1.ParserSource `json:"sources"`
 }
 
+type sourceResponse struct {
+	Source parserv1.ParserSource `json:"source"`
+}
+
+type sourceUpdateRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
 func New(baseURL string, httpClient *http.Client) *Client {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
@@ -144,4 +152,32 @@ func (client *Client) ListSources(ctx context.Context) ([]parserv1.ParserSource,
 		return nil, err
 	}
 	return decoded.Sources, nil
+}
+
+func (client *Client) SetSourceEnabled(ctx context.Context, name string, enabled bool) (parserv1.ParserSource, bool, error) {
+	payload, err := json.Marshal(sourceUpdateRequest{Enabled: enabled})
+	if err != nil {
+		return parserv1.ParserSource{}, false, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPatch, client.baseURL+"/api/v1/parser/sources/"+strings.TrimSpace(name), bytes.NewReader(payload))
+	if err != nil {
+		return parserv1.ParserSource{}, false, err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := client.httpClient.Do(request)
+	if err != nil {
+		return parserv1.ParserSource{}, false, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		return parserv1.ParserSource{}, false, nil
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return parserv1.ParserSource{}, false, fmt.Errorf("parser-service returned status %d", response.StatusCode)
+	}
+	var decoded sourceResponse
+	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+		return parserv1.ParserSource{}, false, err
+	}
+	return decoded.Source, true, nil
 }

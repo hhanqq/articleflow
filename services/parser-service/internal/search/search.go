@@ -25,12 +25,17 @@ type StrategyReporter interface {
 }
 
 type Usecase struct {
-	producer    articleflowkafka.Producer
-	parsers     map[string]Parser
-	sourceOrder []string
+	producer      articleflowkafka.Producer
+	parsers       map[string]Parser
+	sourceOrder   []string
+	sourceEnabled func(string) bool
 }
 
 func NewUsecase(producer articleflowkafka.Producer, parsers []Parser) *Usecase {
+	return NewUsecaseWithSourceEnabled(producer, parsers, nil)
+}
+
+func NewUsecaseWithSourceEnabled(producer articleflowkafka.Producer, parsers []Parser, sourceEnabled func(string) bool) *Usecase {
 	bySource := make(map[string]Parser, len(parsers))
 	sourceOrder := make([]string, 0, len(parsers))
 	for _, parser := range parsers {
@@ -41,7 +46,10 @@ func NewUsecase(producer articleflowkafka.Producer, parsers []Parser) *Usecase {
 		bySource[source] = parser
 		sourceOrder = append(sourceOrder, source)
 	}
-	return &Usecase{producer: producer, parsers: bySource, sourceOrder: sourceOrder}
+	if sourceEnabled == nil {
+		sourceEnabled = func(string) bool { return true }
+	}
+	return &Usecase{producer: producer, parsers: bySource, sourceOrder: sourceOrder, sourceEnabled: sourceEnabled}
 }
 
 func (usecase *Usecase) SearchAndPublish(ctx context.Context, query parserv1.SearchQuery) (parserv1.SearchResult, error) {
@@ -186,14 +194,20 @@ func (usecase *Usecase) selectedSources(query parserv1.SearchQuery) []string {
 		sources := make([]string, 0, len(query.Sources))
 		for _, source := range query.Sources {
 			source = strings.TrimSpace(source)
-			if source == "" || usecase.parsers[source] == nil {
+			if source == "" || usecase.parsers[source] == nil || !usecase.sourceEnabled(source) {
 				continue
 			}
 			sources = append(sources, source)
 		}
 		return sources
 	}
-	return append([]string(nil), usecase.sourceOrder...)
+	sources := make([]string, 0, len(usecase.sourceOrder))
+	for _, source := range usecase.sourceOrder {
+		if usecase.sourceEnabled(source) {
+			sources = append(sources, source)
+		}
+	}
+	return sources
 }
 
 func candidateWithinDateRange(candidate parserv1.ArticleCandidate, query parserv1.SearchQuery) bool {

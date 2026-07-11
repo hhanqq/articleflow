@@ -16,6 +16,7 @@ type fakeParser struct {
 	strategy   string
 	candidates []parserv1.ArticleCandidate
 	err        error
+	calls      *int
 }
 
 type failingProducer struct {
@@ -35,6 +36,9 @@ func (parser fakeParser) Strategy() string {
 }
 
 func (parser fakeParser) Search(ctx context.Context, query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
+	if parser.calls != nil {
+		(*parser.calls)++
+	}
 	if parser.err != nil {
 		return nil, parser.err
 	}
@@ -515,5 +519,36 @@ func TestSelectedSourcesUsesParserRegistrationOrderWhenQueryOmitsSources(t *test
 		if sources[index] != expected[index] {
 			t.Fatalf("expected source order %#v, got %#v", expected, sources)
 		}
+	}
+}
+
+func TestSearchAndPublishSkipsRuntimeDisabledSources(t *testing.T) {
+	calls := 0
+	usecase := NewUsecaseWithSourceEnabled(articleflowkafka.NewMemoryProducer(), []Parser{
+		fakeParser{
+			sourceName: "vc",
+			calls:      &calls,
+			candidates: []parserv1.ArticleCandidate{
+				{SourceName: "vc", ExternalID: "vc-1", URL: "https://vc.ru/1", Title: "Go Kafka"},
+			},
+		},
+	}, func(source string) bool {
+		return source != "vc"
+	})
+
+	result, err := usecase.SearchAndPublish(context.Background(), parserv1.SearchQuery{
+		Text:    "go kafka",
+		Sources: []string{"vc"},
+		Limit:   10,
+	})
+
+	if err != nil {
+		t.Fatalf("search and publish failed: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("disabled source parser should not be called, calls=%d", calls)
+	}
+	if len(result.Candidates) != 0 || len(result.SourceStats) != 0 {
+		t.Fatalf("expected no results for disabled source, got %#v", result)
 	}
 }

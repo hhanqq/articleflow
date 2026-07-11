@@ -34,6 +34,7 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 	mux.Handle("/api/v1/articles", NewArticleHandler(dependencies.ArticleProvider))
 	mux.Handle("/api/v1/search", NewSearchHandler(dependencies.SearchProvider))
 	mux.Handle("/api/v1/search/sources", NewSearchSourcesHandler(dependencies.ParserSourceClient))
+	mux.Handle("/api/v1/search/sources/", NewSearchSourcesHandler(dependencies.ParserSourceClient))
 	mux.Handle("/api/v1/search/jobs", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/search/jobs/", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/reactions", NewReactionHandler(dependencies.ReactionRecorder))
@@ -48,7 +49,7 @@ func withCORS(next http.Handler) http.Handler {
 		if origin != "" {
 			response.Header().Set("Access-Control-Allow-Origin", origin)
 			response.Header().Set("Vary", "Origin")
-			response.Header().Set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+			response.Header().Set("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
 			response.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
 		}
 		if request.Method == http.MethodOptions {

@@ -34,18 +34,18 @@ func (app *App) Handler() http.Handler {
 }
 
 func (app *App) handlerWithStore(store jobs.Store, metrics *observability.MetricsRegistry) http.Handler {
-	return app.handlerWithManager(app.newJobManager(store, metrics), metrics)
+	sourceRegistry := sources.BuildRegistry(app.cfg)
+	runtimeSources := sources.NewRuntimeRegistry(sourceRegistry.Sources)
+	return app.handlerWithManager(app.newJobManager(store, metrics, sourceRegistry, runtimeSources), metrics, runtimeSources)
 }
 
-func (app *App) newJobManager(store jobs.Store, metrics *observability.MetricsRegistry) *jobs.Manager {
+func (app *App) newJobManager(store jobs.Store, metrics *observability.MetricsRegistry, sourceRegistry sources.Registry, runtimeSources *sources.RuntimeRegistry) *jobs.Manager {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
-	sourceRegistry := sources.BuildRegistry(app.cfg)
-	searchUsecase := search.NewUsecase(producer, sourceRegistry.Parsers)
+	searchUsecase := search.NewUsecaseWithSourceEnabled(producer, sourceRegistry.AllParsers, runtimeSources.Enabled)
 	return jobs.NewManagerWithMetrics(store, searchUsecase, jobs.NewObservabilityMetricsRecorder(metrics))
 }
 
-func (app *App) handlerWithManager(manager *jobs.Manager, metrics *observability.MetricsRegistry) http.Handler {
-	sourceRegistry := sources.BuildRegistry(app.cfg)
+func (app *App) handlerWithManager(manager *jobs.Manager, metrics *observability.MetricsRegistry, runtimeSources *sources.RuntimeRegistry) http.Handler {
 	if metrics == nil {
 		metrics = observability.NewMetricsRegistry()
 	}
@@ -54,7 +54,8 @@ func (app *App) handlerWithManager(manager *jobs.Manager, metrics *observability
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", httptransport.NewHealthHandler(app.cfg.ServiceName))
 	mux.Handle("/metrics", observability.NewPrometheusHandler(app.cfg.ServiceName, metrics))
-	mux.Handle("/api/v1/parser/sources", httptransport.NewSourcesHandler(sourceRegistry.Sources))
+	mux.Handle("/api/v1/parser/sources", httptransport.NewSourcesHandler(runtimeSources))
+	mux.Handle("/api/v1/parser/sources/", httptransport.NewSourcesHandler(runtimeSources))
 	jobsHandler := httptransport.NewJobsHandler(manager)
 	mux.Handle("/api/v1/parser/jobs", jobsHandler)
 	mux.Handle("/api/v1/parser/jobs/", jobsHandler)
@@ -68,10 +69,12 @@ func (app *App) Run(ctx context.Context) error {
 	}
 	defer closeStore()
 	metrics := observability.NewMetricsRegistry()
-	manager := app.newJobManager(store, metrics)
+	sourceRegistry := sources.BuildRegistry(app.cfg)
+	runtimeSources := sources.NewRuntimeRegistry(sourceRegistry.Sources)
+	manager := app.newJobManager(store, metrics, sourceRegistry, runtimeSources)
 	server := &http.Server{
 		Addr:    app.cfg.HTTPAddr,
-		Handler: app.handlerWithManager(manager, metrics),
+		Handler: app.handlerWithManager(manager, metrics, runtimeSources),
 	}
 	errs := make(chan error, 2)
 	go func() {
