@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildFeedQueryPath,
   buildReactionPayload,
   buildSearchJobPayload,
   buildSelectedSources,
@@ -108,6 +109,23 @@ test("buildSelectedSources keeps explicit unique source list", () => {
     buildSelectedSources({ allSelected: false, selected: ["habr", "vc", "habr", ""] }),
     ["habr", "vc"],
   );
+});
+
+test("buildFeedQueryPath builds cursor feed URL for query scrolling", () => {
+  assert.equal(
+    buildFeedQueryPath({
+      query: "  go kafka  ",
+      sources: ["habr", "vc"],
+      limit: 10,
+      cursor: "offset:20",
+      refill: true,
+    }),
+    "/api/v1/feed?limit=10&query=go+kafka&sources=habr%2Cvc&cursor=offset%3A20&refill=true",
+  );
+});
+
+test("buildFeedQueryPath omits empty optional params", () => {
+  assert.equal(buildFeedQueryPath({ limit: "bad", sources: [], cursor: "" }), "/api/v1/feed?limit=30");
 });
 
 test("normalizeSourceStats accepts Go JSON field names", () => {

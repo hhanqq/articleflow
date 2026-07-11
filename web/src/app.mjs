@@ -1,4 +1,5 @@
 import {
+  buildFeedQueryPath,
   buildReactionPayload,
   buildSearchJobPayload,
   buildSelectedSources,
@@ -26,6 +27,12 @@ const state = {
   parserSources: [],
   selectedArticle: null,
   articleLoadingID: "",
+  feedQuery: "",
+  feedSources: [],
+  feedLimit: 30,
+  nextCursor: "",
+  feedLoadingMore: false,
+  feedHasMore: false,
   pollTimer: 0,
   feedEmptyTitle: "",
   feedEmptyMessage: "",
@@ -37,6 +44,8 @@ const elements = {
   feed: document.querySelector("#feed"),
   feedCount: document.querySelector("#feedCount"),
   refreshFeed: document.querySelector("#refreshFeed"),
+  loadMoreFeed: document.querySelector("#loadMoreFeed"),
+  feedPageStatus: document.querySelector("#feedPageStatus"),
   searchForm: document.querySelector("#searchForm"),
   searchStored: document.querySelector("#searchStored"),
   runParserJob: document.querySelector("#runParserJob"),
@@ -70,6 +79,10 @@ elements.userID.addEventListener("change", () => {
 
 elements.refreshFeed.addEventListener("click", () => {
   void loadFeed();
+});
+
+elements.loadMoreFeed.addEventListener("click", () => {
+  void loadMoreFeed();
 });
 
 elements.refreshJobs.addEventListener("click", () => {
@@ -115,6 +128,16 @@ elements.feed.addEventListener("click", (event) => {
   void sendReaction(articleID, button.dataset.reaction);
 });
 
+elements.feed.addEventListener("scroll", () => {
+  if (!state.feedHasMore || state.feedLoadingMore || !state.nextCursor) {
+    return;
+  }
+  const remaining = elements.feed.scrollHeight - elements.feed.scrollTop - elements.feed.clientHeight;
+  if (remaining < 240) {
+    void loadMoreFeed();
+  }
+});
+
 elements.articleDetail.addEventListener("click", (event) => {
   if (event.target.closest("[data-close-detail]")) {
     state.selectedArticle = null;
@@ -138,8 +161,11 @@ async function loadFeed() {
   setError("");
   elements.refreshFeed.disabled = true;
   try {
-    const payload = await requestJSON(`/api/v1/feed?limit=30`);
+    resetFeedPaging();
+    const payload = await requestJSON(buildFeedQueryPath({ limit: 30 }));
     state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
+    state.nextCursor = "";
+    state.feedHasMore = false;
     state.feedEmptyTitle = "Лента пока пустая";
     state.feedEmptyMessage = "Запусти поиск справа или проверь, что gateway-api и feed-service доступны.";
     renderFeed();
@@ -147,6 +173,7 @@ async function loadFeed() {
     setError(error.message);
   } finally {
     elements.refreshFeed.disabled = false;
+    renderFeedPaging();
   }
 }
 
@@ -184,11 +211,20 @@ async function searchStoredArticles() {
       sources: selectedSources(),
       limit: elements.searchLimit.value,
     });
-    const payload = await requestJSON("/api/v1/search", {
-      method: "POST",
-      body: JSON.stringify(searchPayload),
-    });
-    state.items = normalizeSearchResponse(payload).map(normalizeCandidateItem);
+    state.feedQuery = searchPayload.query;
+    state.feedSources = searchPayload.sources;
+    state.feedLimit = searchPayload.limit;
+    state.nextCursor = "";
+    state.feedHasMore = false;
+    const payload = await requestJSON(buildFeedQueryPath({
+      query: state.feedQuery,
+      sources: state.feedSources,
+      limit: state.feedLimit,
+      refill: true,
+    }));
+    state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
+    state.nextCursor = payload.next_cursor || payload.NextCursor || "";
+    state.feedHasMore = Boolean(state.nextCursor);
     if (state.items.length === 0) {
       state.feedEmptyTitle = "В базе ничего не найдено";
       state.feedEmptyMessage = `По запросу "${searchPayload.query}" нет сохраненных статей. Запусти parser job, чтобы попробовать подтянуть свежие материалы.`;
@@ -197,10 +233,39 @@ async function searchStoredArticles() {
       state.feedEmptyMessage = "";
     }
     renderFeed();
+    renderFeedPaging(payload);
   } catch (error) {
     setError(error.message);
   } finally {
     elements.searchStored.disabled = false;
+  }
+}
+
+async function loadMoreFeed() {
+  if (!state.nextCursor || state.feedLoadingMore || !state.feedQuery) {
+    return;
+  }
+  state.feedLoadingMore = true;
+  renderFeedPaging();
+  try {
+    const payload = await requestJSON(buildFeedQueryPath({
+      query: state.feedQuery,
+      sources: state.feedSources,
+      limit: state.feedLimit,
+      cursor: state.nextCursor,
+      refill: true,
+    }));
+    const nextItems = (payload.items || payload.Items || []).map(normalizeFeedItem);
+    appendUniqueFeedItems(nextItems);
+    state.nextCursor = payload.next_cursor || payload.NextCursor || "";
+    state.feedHasMore = Boolean(state.nextCursor);
+    renderFeed();
+    renderFeedPaging(payload);
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    state.feedLoadingMore = false;
+    renderFeedPaging();
   }
 }
 
@@ -274,6 +339,8 @@ async function openJob(jobID) {
 function renderCompletedJobResults(job) {
   const candidates = job.Candidates ?? job.candidates ?? [];
   state.items = candidates.map(normalizeCandidateItem);
+  state.nextCursor = "";
+  state.feedHasMore = false;
   const query = job.Query?.Text ?? job.query?.text ?? elements.searchQuery.value.trim();
   if (state.items.length === 0) {
     state.feedEmptyTitle = "По запросу ничего не найдено";
@@ -285,6 +352,7 @@ function renderCompletedJobResults(job) {
     state.feedEmptyMessage = "";
   }
   renderFeed();
+  renderFeedPaging();
 }
 
 async function sendReaction(articleID, type) {
@@ -357,6 +425,51 @@ function renderFeed() {
     return;
   }
   elements.feed.innerHTML = state.items.map(renderArticle).join("");
+}
+
+function renderFeedPaging(payload = {}) {
+  const refillStarted = Boolean(payload.refill_started || payload.RefillStarted);
+  const nextCursor = state.nextCursor;
+  elements.loadMoreFeed.hidden = !state.feedQuery;
+  elements.loadMoreFeed.disabled = state.feedLoadingMore || !nextCursor;
+  elements.loadMoreFeed.textContent = state.feedLoadingMore
+    ? "Загрузка"
+    : nextCursor
+      ? "Загрузить еще"
+      : "Больше нет";
+  const parts = [];
+  if (state.feedQuery) {
+    parts.push(`query: ${state.feedQuery}`);
+  }
+  if (nextCursor) {
+    parts.push(`next: ${nextCursor}`);
+  }
+  if (refillStarted) {
+    const jobID = payload.refill_job?.ID ?? payload.RefillJob?.ID ?? payload.refill_job?.id ?? "";
+    parts.push(jobID ? `refill: ${jobID}` : "refill started");
+  }
+  elements.feedPageStatus.textContent = parts.join(" | ");
+}
+
+function resetFeedPaging() {
+  state.feedQuery = "";
+  state.feedSources = [];
+  state.feedLimit = 30;
+  state.nextCursor = "";
+  state.feedLoadingMore = false;
+  state.feedHasMore = false;
+}
+
+function appendUniqueFeedItems(items) {
+  const seen = new Set(state.items.map((item) => item.id || item.url));
+  for (const item of items) {
+    const key = item.id || item.url;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    state.items.push(item);
+  }
 }
 
 function renderArticle(item) {

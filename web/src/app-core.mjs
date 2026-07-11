@@ -86,6 +86,29 @@ export function buildSelectedSources({ allSelected, selected }) {
   return unique;
 }
 
+export function buildFeedQueryPath({ query, sources, limit, cursor, refill } = {}) {
+  const params = new URLSearchParams();
+  const parsedLimit = Number.parseInt(String(limit ?? "30"), 10);
+  params.set("limit", String(Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 30));
+
+  const normalizedQuery = String(query ?? "").trim();
+  if (normalizedQuery) {
+    params.set("query", normalizedQuery);
+  }
+  const selectedSources = Array.isArray(sources) ? sources.filter(Boolean) : [];
+  if (selectedSources.length > 0) {
+    params.set("sources", selectedSources.join(","));
+  }
+  const normalizedCursor = String(cursor ?? "").trim();
+  if (normalizedCursor) {
+    params.set("cursor", normalizedCursor);
+  }
+  if (refill) {
+    params.set("refill", "true");
+  }
+  return `/api/v1/feed?${params.toString()}`;
+}
+
 export function normalizeSourceStats(raw = {}) {
   return {
     sourceName: String(raw.SourceName ?? raw.source_name ?? ""),
