@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +24,14 @@ type structuredArticle struct {
 	Tags        []string
 	PublishedAt time.Time
 }
+
+var (
+	dzenEpochTimePatterns = []*regexp.Regexp{
+		regexp.MustCompile(`"publishTime"\s*:\s*([0-9]{10,13})`),
+		regexp.MustCompile(`"addTime"\s*:\s*([0-9]{10,13})`),
+	}
+	dzenPublishDatePattern = regexp.MustCompile(`"publishDate"\s*:\s*"([^"]+)"`)
+)
 
 func ParseArticleHTML(reader io.Reader, articleURL string) (articlev1.Article, error) {
 	document, err := goquery.NewDocumentFromReader(reader)
@@ -61,6 +71,9 @@ func parseStructuredArticle(document *goquery.Document) structuredArticle {
 		article = parsed
 		return false
 	})
+	if article.PublishedAt.IsZero() {
+		article.PublishedAt = parseEmbeddedDzenPublishedAt(document)
+	}
 	return article
 }
 
@@ -168,6 +181,41 @@ func parseTime(value string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+func parseEmbeddedDzenPublishedAt(document *goquery.Document) time.Time {
+	var publishedAt time.Time
+	document.Find("script").EachWithBreak(func(_ int, script *goquery.Selection) bool {
+		text := script.Text()
+		for _, pattern := range dzenEpochTimePatterns {
+			if parsed := parseUnixTimestamp(pattern.FindStringSubmatch(text)); !parsed.IsZero() {
+				publishedAt = parsed
+				return false
+			}
+		}
+		if match := dzenPublishDatePattern.FindStringSubmatch(text); len(match) == 2 {
+			if parsed := parseTime(match[1]); !parsed.IsZero() {
+				publishedAt = parsed
+				return false
+			}
+		}
+		return true
+	})
+	return publishedAt
+}
+
+func parseUnixTimestamp(match []string) time.Time {
+	if len(match) != 2 {
+		return time.Time{}
+	}
+	value, err := strconv.ParseInt(match[1], 10, 64)
+	if err != nil || value <= 0 {
+		return time.Time{}
+	}
+	if value > 9999999999 {
+		return time.UnixMilli(value).UTC()
+	}
+	return time.Unix(value, 0).UTC()
 }
 
 func attr(document *goquery.Document, selector string, name string) string {

@@ -15,6 +15,7 @@ import (
 
 const SourceName = "dzen"
 const maxSearchPages = 4
+const maxDzenArticleAge = 5 * 365 * 24 * time.Hour
 
 type ClientOptions struct {
 	BaseURL       string
@@ -28,6 +29,7 @@ type Client struct {
 	publicBaseURL string
 	client        *http.Client
 	language      string
+	now           func() time.Time
 }
 
 func NewClient(options ClientOptions) *Client {
@@ -48,6 +50,7 @@ func NewClient(options ClientOptions) *Client {
 		publicBaseURL: publicBaseURL,
 		client:        httpClient,
 		language:      firstNonEmpty(options.Language, "ru"),
+		now:           time.Now,
 	}
 }
 
@@ -161,6 +164,9 @@ func (client *Client) fetchCandidates(ctx context.Context, urls []string, limit 
 		if !item.ok {
 			continue
 		}
+		if client.isStaleArticle(item.candidate.PublishedAt) {
+			continue
+		}
 		candidates = append(candidates, item.candidate)
 		if limit > 0 && len(candidates) >= limit {
 			break
@@ -191,6 +197,18 @@ func (client *Client) fetchCandidate(ctx context.Context, articleURL string) (pa
 		Language:    firstNonEmpty(article.Language, client.language),
 		PublishedAt: article.PublishedAt,
 	}, true
+}
+
+func (client *Client) isStaleArticle(publishedAt time.Time) bool {
+	if publishedAt.IsZero() {
+		return false
+	}
+	now := time.Now
+	if client.now != nil {
+		now = client.now
+	}
+	age := now().UTC().Sub(publishedAt.UTC())
+	return age > maxDzenArticleAge
 }
 
 func (client *Client) fetchURL(articleURL string) string {

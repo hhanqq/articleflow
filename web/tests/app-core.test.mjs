@@ -7,6 +7,7 @@ import {
   buildSearchJobPayload,
   buildSelectedSources,
   defaultAPIBase,
+  formatDate,
   formatScore,
   normalizeArticle,
   normalizeCandidateItem,
@@ -24,6 +25,10 @@ test("defaultAPIBase uses gateway in local dev and same origin behind nginx", ()
   assert.equal(defaultAPIBase("http://localhost:5173"), "http://localhost:8080");
   assert.equal(defaultAPIBase("http://localhost:8089"), "http://localhost:8089");
   assert.equal(defaultAPIBase("https://articles.example.com"), "https://articles.example.com");
+});
+
+test("formatDate hides zero Go time values", () => {
+  assert.equal(formatDate("0001-01-01T00:00:00Z"), "");
 });
 
 test("normalizeFeedItem accepts Go JSON field names from gateway", () => {

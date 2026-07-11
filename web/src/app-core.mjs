@@ -194,6 +194,9 @@ export function formatDate(value) {
   if (Number.isNaN(date.getTime())) {
     return "";
   }
+  if (date.getUTCFullYear() < 2000) {
+    return "";
+  }
   return new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
     month: "2-digit",

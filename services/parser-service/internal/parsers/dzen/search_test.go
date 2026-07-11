@@ -64,6 +64,43 @@ func TestSearchHTMLExtractsArticleLinksAndParsesArticles(t *testing.T) {
 	}
 }
 
+func TestSearchSkipsStaleArticles(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/search":
+			_, _ = response.Write([]byte(`
+				<html><body>
+					<a href="/a/old">Старая новость</a>
+					<a href="/a/fresh">Свежая новость</a>
+				</body></html>
+			`))
+		case "/a/old":
+			_, _ = response.Write([]byte(articleHTMLWithDate("Старая новость", "Архив 2011", "https://dzen.ru/a/old", "2011-01-01T10:00:00Z")))
+		case "/a/fresh":
+			_, _ = response.Write([]byte(articleHTMLWithDate("Свежая новость", "Актуальный материал", "https://dzen.ru/a/fresh", "2026-07-07T10:00:00Z")))
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{BaseURL: server.URL, PublicBaseURL: "https://dzen.ru", HTTPClient: server.Client()})
+	client.now = func() time.Time {
+		return time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC)
+	}
+
+	candidates, err := client.Search(context.Background(), parserv1.SearchQuery{Text: "новости", Limit: 5}.Normalize())
+	if err != nil {
+		t.Fatalf("search dzen: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 fresh candidate, got %d: %#v", len(candidates), candidates)
+	}
+	if candidates[0].URL != "https://dzen.ru/a/fresh" {
+		t.Fatalf("unexpected candidate URL: %s", candidates[0].URL)
+	}
+}
+
 func TestSearchHTMLExtractsEmbeddedArticleURLs(t *testing.T) {
 	html := strings.NewReader(`
 		<html><body>
@@ -231,6 +268,10 @@ func TestSearchReturnsAuthRedirectError(t *testing.T) {
 }
 
 func articleHTML(title, description, canonical string) string {
+	return articleHTMLWithDate(title, description, canonical, "2026-07-07T10:00:00Z")
+}
+
+func articleHTMLWithDate(title, description, canonical, publishedAt string) string {
 	return `<!doctype html>
 <html>
 <head>
@@ -242,7 +283,7 @@ func articleHTML(title, description, canonical string) string {
 		"headline":"` + title + `",
 		"description":"` + description + `",
 		"author":{"name":"Редактор"},
-		"datePublished":"2026-07-07T10:00:00Z",
+		"datePublished":"` + publishedAt + `",
 		"keywords":["travel","turkey"]
 	}</script>
 </head>
