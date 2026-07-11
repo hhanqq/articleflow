@@ -26,3 +26,27 @@ func TestClientListsUserReactions(t *testing.T) {
 		t.Fatalf("unexpected reactions: %#v", reactions)
 	}
 }
+
+func TestClientEnsuresUserProfile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", request.Method)
+		}
+		if request.URL.Path != "/api/v1/users" {
+			t.Fatalf("unexpected path: %s", request.URL.Path)
+		}
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{"user":{"ID":"reader-1","CreatedAt":"2026-07-11T10:00:00Z"}}`))
+	}))
+	defer server.Close()
+	client := New(server.URL, server.Client())
+
+	profile, err := client.EnsureUserProfile(t.Context(), "reader-1")
+
+	if err != nil {
+		t.Fatalf("ensure profile: %v", err)
+	}
+	if profile.ID != "reader-1" {
+		t.Fatalf("unexpected profile: %#v", profile)
+	}
+}

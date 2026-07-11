@@ -37,6 +37,7 @@ func (app *App) Handler() http.Handler {
 		ParserJobClient:      parser,
 		ParserSourceClient:   parser,
 		UserReactionProvider: users,
+		UserProfileProvider:  users,
 		ReactionRecorder:     reactions.NewPublisher(producer),
 		RateLimitPerMinute:   app.cfg.RateLimitPerMinute,
 		FeedCacheTTL:         time.Duration(app.cfg.FeedCacheTTLSeconds) * time.Second,

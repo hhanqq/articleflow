@@ -22,7 +22,6 @@ import {
 
 const state = {
   apiBase: localStorage.getItem("articleflow.apiBase") || defaultAPIBase(window.location.origin),
-  userID: localStorage.getItem("articleflow.userID") || "reader-demo",
   items: [],
   selectedIndex: 0,
   activeJob: null,
@@ -45,7 +44,6 @@ const state = {
 
 const elements = {
   apiBase: document.querySelector("#apiBase"),
-  userID: document.querySelector("#userID"),
   feed: document.querySelector("#feed"),
   feedCount: document.querySelector("#feedCount"),
   refreshFeed: document.querySelector("#refreshFeed"),
@@ -69,18 +67,11 @@ const elements = {
 };
 
 elements.apiBase.value = state.apiBase;
-elements.userID.value = state.userID;
 
 elements.apiBase.addEventListener("change", () => {
   state.apiBase = trimTrailingSlash(elements.apiBase.value);
   elements.apiBase.value = state.apiBase;
   localStorage.setItem("articleflow.apiBase", state.apiBase);
-});
-
-elements.userID.addEventListener("change", () => {
-  state.userID = elements.userID.value.trim() || "reader-demo";
-  elements.userID.value = state.userID;
-  localStorage.setItem("articleflow.userID", state.userID);
 });
 
 elements.refreshFeed.addEventListener("click", () => {
@@ -162,13 +153,22 @@ elements.jobHistory.addEventListener("click", (event) => {
 void loadFeed();
 void loadJobHistory();
 void loadSources();
+void loadCurrentUser();
+
+async function loadCurrentUser() {
+  try {
+    await requestJSON("/api/v1/me");
+  } catch (error) {
+    setError(error.message);
+  }
+}
 
 async function loadFeed() {
   setError("");
   elements.refreshFeed.disabled = true;
   try {
     resetFeedPaging();
-    const payload = await requestJSON(buildFeedQueryPath({ limit: 30, userID: state.userID }));
+    const payload = await requestJSON(buildFeedQueryPath({ limit: 30 }));
     state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
     state.nextCursor = "";
     state.feedHasMore = false;
@@ -233,7 +233,6 @@ async function searchStoredArticles() {
       fromDate: state.feedFromDate,
       toDate: state.feedToDate,
       refill: true,
-      userID: state.userID,
     }));
     state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
     state.nextCursor = payload.next_cursor || payload.NextCursor || "";
@@ -269,7 +268,6 @@ async function loadMoreFeed() {
       fromDate: state.feedFromDate,
       toDate: state.feedToDate,
       refill: true,
-      userID: state.userID,
     }));
     const nextItems = (payload.items || payload.Items || []).map(normalizeFeedItem);
     appendUniqueFeedItems(nextItems);
@@ -374,7 +372,7 @@ function renderCompletedJobResults(job) {
 async function sendReaction(articleID, type) {
   setError("");
   try {
-    const payload = buildReactionPayload({ userID: state.userID, articleID, type });
+    const payload = buildReactionPayload({ articleID, type });
     await requestJSON("/api/v1/reactions", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -419,6 +417,7 @@ async function requestJSON(path, options = {}) {
   try {
     response = await fetch(`${state.apiBase}${path}`, {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(options.headers || {}),

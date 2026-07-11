@@ -241,17 +241,15 @@ test("normalizeSourcesResponse accepts Go JSON parser sources", () => {
 });
 
 test("buildReactionPayload validates article and reaction", () => {
-  const payload = buildReactionPayload({
-    userID: "reader-1",
-    articleID: "habr:1",
-    type: "save",
-  });
+	const payload = buildReactionPayload({
+		articleID: "habr:1",
+		type: "save",
+	});
 
-  assert.deepEqual(payload, {
-    user_id: "reader-1",
-    article_id: "habr:1",
-    type: "save",
-  });
+	assert.deepEqual(payload, {
+		article_id: "habr:1",
+		type: "save",
+	});
 });
 
 test("shouldPollJob only polls active job statuses", () => {

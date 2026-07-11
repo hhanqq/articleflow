@@ -246,7 +246,7 @@ func nextFeedCursor(currentOffset int, returnedCount int, limit int) string {
 }
 
 func personalizedFeedItems(request *http.Request, dependencies FeedHandlerDependencies, items []feedv1.FeedItem) []feedv1.FeedItem {
-	userID := strings.TrimSpace(request.URL.Query().Get("user_id"))
+	userID := UserIDFromRequest(request)
 	if userID == "" || dependencies.UserReactionProvider == nil || len(items) == 0 {
 		return items
 	}

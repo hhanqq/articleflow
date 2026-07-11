@@ -237,20 +237,20 @@ export function buildReactionPayload({ userID, articleID, type }) {
   const normalizedUserID = String(userID ?? "").trim();
   const normalizedArticleID = String(articleID ?? "").trim();
   const normalizedType = String(type ?? "").trim();
-  if (!normalizedUserID) {
-    throw new Error("user_id is required");
-  }
   if (!normalizedArticleID) {
     throw new Error("article_id is required");
   }
   if (!REACTION_TYPES.has(normalizedType)) {
     throw new Error("unsupported reaction type");
   }
-  return {
-    user_id: normalizedUserID,
+  const payload = {
     article_id: normalizedArticleID,
     type: normalizedType,
   };
+  if (normalizedUserID) {
+    payload.user_id = normalizedUserID;
+  }
+  return payload;
 }
 
 export function shouldPollJob(job) {

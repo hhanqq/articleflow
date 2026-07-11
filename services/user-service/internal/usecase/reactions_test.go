@@ -27,6 +27,32 @@ func TestMemoryReactionsStoresUserReaction(t *testing.T) {
 	if reactions[0] != reaction {
 		t.Fatalf("unexpected reaction: %+v", reactions[0])
 	}
+	profile, ok := store.GetProfile("reader-1")
+	if !ok || profile.ID != "reader-1" {
+		t.Fatalf("expected reaction to ensure user profile, got %#v ok=%v", profile, ok)
+	}
+}
+
+func TestMemoryReactionsEnsuresUserProfile(t *testing.T) {
+	store := NewMemoryReactions()
+	now := time.Date(2026, 7, 11, 12, 0, 0, 0, time.UTC)
+
+	profile, err := store.EnsureProfile(userv1.UserProfile{
+		ID:        "reader-1",
+		Interests: []string{"go", "kafka"},
+		CreatedAt: now,
+	})
+
+	if err != nil {
+		t.Fatalf("ensure profile: %v", err)
+	}
+	if profile.ID != "reader-1" || len(profile.Interests) != 2 {
+		t.Fatalf("unexpected profile: %#v", profile)
+	}
+	stored, ok := store.GetProfile("reader-1")
+	if !ok || !stored.CreatedAt.Equal(now) {
+		t.Fatalf("expected stored profile, got %#v ok=%v", stored, ok)
+	}
 }
 
 func TestMemoryReactionsReplacesSameUserArticleType(t *testing.T) {

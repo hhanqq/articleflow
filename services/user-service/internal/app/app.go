@@ -28,7 +28,8 @@ func (app *App) handler(reactions usecase.ReactionStore) http.Handler {
 		_, _ = response.Write([]byte("ok"))
 	})
 	mux.Handle("/metrics", observability.NewPrometheusHandler(app.cfg.ServiceName, metrics))
-	mux.Handle("/api/v1/users/", httptransport.NewUserReactionsHandler(reactions))
+	mux.Handle("/api/v1/users", httptransport.NewUsersHandler(reactions))
+	mux.Handle("/api/v1/users/", httptransport.NewUsersHandler(reactions))
 	return observability.InstrumentHTTPRequests(metrics, mux)
 }
 

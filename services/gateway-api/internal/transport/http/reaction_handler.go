@@ -36,7 +36,7 @@ func NewReactionHandler(recorder ReactionRecorder) http.Handler {
 			http.Error(response, "invalid json body", http.StatusBadRequest)
 			return
 		}
-		reaction, err := payload.toReaction(time.Now().UTC())
+		reaction, err := payload.toReaction(time.Now().UTC(), UserIDFromRequest(request))
 		if err != nil {
 			http.Error(response, err.Error(), http.StatusBadRequest)
 			return
@@ -52,12 +52,15 @@ func NewReactionHandler(recorder ReactionRecorder) http.Handler {
 	})
 }
 
-func (request ReactionRequest) toReaction(now time.Time) (userv1.UserReaction, error) {
+func (request ReactionRequest) toReaction(now time.Time, fallbackUserID string) (userv1.UserReaction, error) {
 	reaction := userv1.UserReaction{
 		UserID:    strings.TrimSpace(request.UserID),
 		ArticleID: strings.TrimSpace(request.ArticleID),
 		Type:      userv1.ReactionType(strings.TrimSpace(request.Type)),
 		CreatedAt: now,
+	}
+	if reaction.UserID == "" {
+		reaction.UserID = strings.TrimSpace(fallbackUserID)
 	}
 	if reaction.UserID == "" {
 		return userv1.UserReaction{}, errors.New("user_id is required")

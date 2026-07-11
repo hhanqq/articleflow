@@ -177,6 +177,39 @@ func TestFeedHandlerPersonalizesQueryFeedByUserReactions(t *testing.T) {
 	}
 }
 
+func TestFeedHandlerUsesSessionUserForPersonalization(t *testing.T) {
+	reactions := &fakeUserReactionProvider{
+		reactions: []userv1.UserReaction{
+			{UserID: "reader-session", ArticleID: "habr:1", Type: userv1.ReactionSave, CreatedAt: time.Date(2026, 7, 11, 10, 1, 0, 0, time.UTC)},
+		},
+	}
+	handler := NewFeedHandlerWithRefill(FeedHandlerDependencies{
+		FeedProvider: fakeFeedProvider{
+			items: []feedv1.FeedItem{{ArticleID: "habr:1", Title: "Saved article"}},
+		},
+		UserReactionProvider: reactions,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/feed?limit=10", nil)
+	request = request.WithContext(ContextWithUserID(request.Context(), "reader-session"))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	if reactions.userID != "reader-session" {
+		t.Fatalf("expected session user lookup, got %q", reactions.userID)
+	}
+	var payload FeedResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(payload.Items) != 1 || !payload.Items[0].Saved {
+		t.Fatalf("expected saved feed item, got %#v", payload.Items)
+	}
+}
+
 func TestFeedHandlerPassesDateFiltersToQueryFeed(t *testing.T) {
 	searcher := &fakeFeedSearchProvider{}
 	handler := NewFeedHandlerWithRefill(FeedHandlerDependencies{

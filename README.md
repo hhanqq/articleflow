@@ -93,6 +93,8 @@ article.discovered.v1
   -> gateway-api proxies GET /api/v1/feed to feed-service
 ```
 
+Stage 8 user sessions are gateway-managed. `gateway-api` creates an `articleflow_user_id` cookie, exposes `GET /api/v1/me`, and uses that session user for feed personalization and reactions. The web UI no longer requires a manual `user_id`; user profiles are ensured in `user-service` and stored in Postgres.
+
 Stage 6 SPA is available in `web/`. It is a dependency-free static app with a vertical article feed, stored article search, separate parser job controls, job status polling, API base settings, and reaction buttons.
 
 ## Gateway API
@@ -483,6 +485,7 @@ gateway-api     http://localhost:8080
 parser-service  http://localhost:8081
 feed-service    http://localhost:8082
 article-service http://localhost:8083
+user-service    http://localhost:8084
 kafka-ui        http://localhost:8088
 ```
 

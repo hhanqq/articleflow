@@ -5,13 +5,14 @@ BASE_URL="${BASE_URL:-http://localhost:8080}"
 QUERY="${QUERY:-go kafka}"
 REQUESTS="${REQUESTS:-20}"
 LIMIT="${LIMIT:-10}"
-USER_ID="${USER_ID:-load-smoke}"
+COOKIE_JAR="$(mktemp)"
+trap 'rm -f "${COOKIE_JAR}"' EXIT
 
 total_ms=0
 for index in $(seq 1 "${REQUESTS}"); do
   started_ms="$(node -e 'console.log(Date.now())')"
   encoded_query="$(node -e 'console.log(encodeURIComponent(process.argv[1]))' "${QUERY}")"
-  payload="$(curl -fsS "${BASE_URL}/api/v1/feed?query=${encoded_query}&limit=${LIMIT}&user_id=${USER_ID}&refill=true")"
+  payload="$(curl -fsS -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" "${BASE_URL}/api/v1/feed?query=${encoded_query}&limit=${LIMIT}&refill=true")"
   finished_ms="$(node -e 'console.log(Date.now())')"
   elapsed_ms="$(( finished_ms - started_ms ))"
   total_ms="$(( total_ms + elapsed_ms ))"

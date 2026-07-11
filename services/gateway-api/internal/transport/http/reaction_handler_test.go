@@ -42,3 +42,21 @@ func TestReactionHandlerAcceptsReaction(t *testing.T) {
 		t.Fatalf("unexpected reaction type: %s", recorder.reaction.Type)
 	}
 }
+
+func TestReactionHandlerUsesSessionUserWhenBodyOmitsUserID(t *testing.T) {
+	recorder := &fakeReactionRecorder{}
+	handler := NewReactionHandler(recorder)
+	body := bytes.NewBufferString(`{"article_id":"article-1","type":"save"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/reactions", body)
+	request = request.WithContext(ContextWithUserID(request.Context(), "reader-session"))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected status 202, got %d", response.Code)
+	}
+	if recorder.reaction.UserID != "reader-session" {
+		t.Fatalf("expected session user id, got %q", recorder.reaction.UserID)
+	}
+}

@@ -3,7 +3,8 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 USER_BASE_URL="${USER_BASE_URL:-http://localhost:8084}"
-USER_ID="${USER_ID:-stage7-e2e-$(date +%s)}"
+COOKIE_JAR="$(mktemp)"
+trap 'rm -f "${COOKIE_JAR}"' EXIT
 
 require_json_field() {
   node - "$1" "$2" <<'NODE'
@@ -22,17 +23,26 @@ if (expr === "second-id") {
 NODE
 }
 
-feed_payload="$(curl -fsS "${BASE_URL}/api/v1/feed?limit=5")"
+me_payload="$(curl -fsS -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" "${BASE_URL}/api/v1/me")"
+USER_ID="$(node - "${me_payload}" <<'NODE'
+const payload = JSON.parse(process.argv[2]);
+const user = payload.user || payload.User || {};
+if (!user.ID && !user.id) process.exit(2);
+console.log(user.ID || user.id);
+NODE
+)"
+
+feed_payload="$(curl -fsS -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" "${BASE_URL}/api/v1/feed?limit=5")"
 skip_article_id="$(require_json_field "${feed_payload}" "first-id")"
 save_article_id="$(require_json_field "${feed_payload}" "second-id")"
 
-curl -fsS -X POST "${BASE_URL}/api/v1/reactions" \
+curl -fsS -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" -X POST "${BASE_URL}/api/v1/reactions" \
   -H "Content-Type: application/json" \
-  -d "{\"user_id\":\"${USER_ID}\",\"article_id\":\"${skip_article_id}\",\"type\":\"skip\"}" >/dev/null
+  -d "{\"article_id\":\"${skip_article_id}\",\"type\":\"skip\"}" >/dev/null
 
-curl -fsS -X POST "${BASE_URL}/api/v1/reactions" \
+curl -fsS -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" -X POST "${BASE_URL}/api/v1/reactions" \
   -H "Content-Type: application/json" \
-  -d "{\"user_id\":\"${USER_ID}\",\"article_id\":\"${save_article_id}\",\"type\":\"save\"}" >/dev/null
+  -d "{\"article_id\":\"${save_article_id}\",\"type\":\"save\"}" >/dev/null
 
 reactions_seen=false
 for _ in {1..10}; do
@@ -49,7 +59,7 @@ if [[ "${reactions_seen}" != "true" ]]; then
   exit 1
 fi
 
-personalized="$(curl -fsS "${BASE_URL}/api/v1/feed?limit=5&user_id=${USER_ID}")"
+personalized="$(curl -fsS -c "${COOKIE_JAR}" -b "${COOKIE_JAR}" "${BASE_URL}/api/v1/feed?limit=5")"
 
 node - "${personalized}" "${skip_article_id}" "${save_article_id}" <<'NODE'
 const payload = JSON.parse(process.argv[2]);
