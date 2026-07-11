@@ -12,6 +12,7 @@ type Config struct {
 	ArticleServiceURL   string
 	ParserServiceURL    string
 	FeedServiceURL      string
+	UserServiceURL      string
 	KafkaBrokers        string
 	RateLimitPerMinute  int
 	FeedCacheTTLSeconds int
@@ -24,6 +25,7 @@ func Load() Config {
 		ArticleServiceURL:   sharedconfig.String("ARTICLE_SERVICE_URL", "http://localhost:8083"),
 		ParserServiceURL:    sharedconfig.String("PARSER_SERVICE_URL", "http://localhost:8081"),
 		FeedServiceURL:      sharedconfig.String("FEED_SERVICE_URL", "http://localhost:8082"),
+		UserServiceURL:      sharedconfig.String("USER_SERVICE_URL", "http://localhost:8084"),
 		KafkaBrokers:        sharedconfig.String("KAFKA_BROKERS", "127.0.0.1:9092"),
 		RateLimitPerMinute:  sharedconfig.Int("GATEWAY_RATE_LIMIT_PER_MINUTE", 120),
 		FeedCacheTTLSeconds: sharedconfig.Int("GATEWAY_FEED_CACHE_TTL_SECONDS", 15),

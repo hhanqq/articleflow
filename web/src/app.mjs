@@ -168,7 +168,7 @@ async function loadFeed() {
   elements.refreshFeed.disabled = true;
   try {
     resetFeedPaging();
-    const payload = await requestJSON(buildFeedQueryPath({ limit: 30 }));
+    const payload = await requestJSON(buildFeedQueryPath({ limit: 30, userID: state.userID }));
     state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
     state.nextCursor = "";
     state.feedHasMore = false;
@@ -233,6 +233,7 @@ async function searchStoredArticles() {
       fromDate: state.feedFromDate,
       toDate: state.feedToDate,
       refill: true,
+      userID: state.userID,
     }));
     state.items = (payload.items || payload.Items || []).map(normalizeFeedItem);
     state.nextCursor = payload.next_cursor || payload.NextCursor || "";
@@ -268,6 +269,7 @@ async function loadMoreFeed() {
       fromDate: state.feedFromDate,
       toDate: state.feedToDate,
       refill: true,
+      userID: state.userID,
     }));
     const nextItems = (payload.items || payload.Items || []).map(normalizeFeedItem);
     appendUniqueFeedItems(nextItems);

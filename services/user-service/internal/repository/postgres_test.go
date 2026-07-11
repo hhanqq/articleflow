@@ -26,6 +26,10 @@ func (database *recordingDatabase) ExecContext(_ context.Context, query string, 
 	return fakeResult{}, nil
 }
 
+func (database *recordingDatabase) QueryContext(_ context.Context, _ string, _ ...any) (*sql.Rows, error) {
+	return nil, nil
+}
+
 func TestPostgresReactionStoreRecordsReaction(t *testing.T) {
 	database := &recordingDatabase{}
 	store := NewPostgresReactionStore(database)

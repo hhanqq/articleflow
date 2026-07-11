@@ -8,6 +8,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ServiceName != "user-service" {
 		t.Fatalf("unexpected service name: %s", cfg.ServiceName)
 	}
+	if cfg.HTTPAddr != ":8084" {
+		t.Fatalf("unexpected HTTP addr: %s", cfg.HTTPAddr)
+	}
 	if cfg.GRPCAddr != ":9003" {
 		t.Fatalf("unexpected gRPC addr: %s", cfg.GRPCAddr)
 	}

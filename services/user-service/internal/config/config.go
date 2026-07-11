@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	ServiceName             string
+	HTTPAddr                string
 	GRPCAddr                string
 	KafkaBrokers            string
 	UserReactionTopic       string
@@ -20,6 +21,7 @@ type Config struct {
 func Load() Config {
 	return Config{
 		ServiceName:             "user-service",
+		HTTPAddr:                sharedconfig.String("USER_HTTP_ADDR", ":8084"),
 		GRPCAddr:                sharedconfig.String("USER_GRPC_ADDR", ":9003"),
 		KafkaBrokers:            sharedconfig.String("KAFKA_BROKERS", "127.0.0.1:9092"),
 		UserReactionTopic:       sharedconfig.String("USER_REACTION_TOPIC", "user.reaction.created.v1"),

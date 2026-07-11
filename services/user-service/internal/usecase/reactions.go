@@ -10,6 +10,7 @@ import (
 
 type ReactionStore interface {
 	Record(reaction userv1.UserReaction) error
+	ListByUser(userID string) []userv1.UserReaction
 }
 
 type MemoryReactions struct {

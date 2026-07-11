@@ -20,6 +20,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.FeedServiceURL != "http://localhost:8082" {
 		t.Fatalf("unexpected feed service URL: %s", cfg.FeedServiceURL)
 	}
+	if cfg.UserServiceURL != "http://localhost:8084" {
+		t.Fatalf("unexpected user service URL: %s", cfg.UserServiceURL)
+	}
 	if cfg.KafkaBrokers != "127.0.0.1:9092" {
 		t.Fatalf("unexpected kafka brokers: %s", cfg.KafkaBrokers)
 	}

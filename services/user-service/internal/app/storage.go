@@ -15,6 +15,7 @@ import (
 
 type databaseHandle interface {
 	repository.SQLExecer
+	repository.SQLQueryer
 	PingContext(ctx context.Context) error
 	Close() error
 }

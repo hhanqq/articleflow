@@ -11,6 +11,8 @@ type FeedItem struct {
 	Tags         []string
 	Score        float64
 	ScoreReasons []string
+	Reaction     string
+	Saved        bool
 	PublishedAt  time.Time
 }
 

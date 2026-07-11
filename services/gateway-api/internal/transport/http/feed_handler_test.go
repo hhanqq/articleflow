@@ -10,6 +10,7 @@ import (
 
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
+	userv1 "github.com/hanq/articleflow/contracts/user/v1"
 )
 
 type fakeFeedProvider struct {
@@ -74,6 +75,16 @@ func (starter *fakeFeedRefillStarter) StartAsync(_ context.Context, query parser
 	return starter.job, nil
 }
 
+type fakeUserReactionProvider struct {
+	reactions []userv1.UserReaction
+	userID    string
+}
+
+func (provider *fakeUserReactionProvider) ListUserReactions(_ context.Context, userID string) ([]userv1.UserReaction, error) {
+	provider.userID = userID
+	return provider.reactions, nil
+}
+
 func TestFeedHandlerSearchesStoredArticlesForQueryFeed(t *testing.T) {
 	searcher := &fakeFeedSearchProvider{
 		candidates: []parserv1.ArticleCandidate{
@@ -118,6 +129,51 @@ func TestFeedHandlerSearchesStoredArticlesForQueryFeed(t *testing.T) {
 	}
 	if len(searcher.query.Sources) != 2 || searcher.query.Sources[0] != "dzen" || searcher.query.Sources[1] != "habr" {
 		t.Fatalf("unexpected sources: %#v", searcher.query.Sources)
+	}
+}
+
+func TestFeedHandlerPersonalizesQueryFeedByUserReactions(t *testing.T) {
+	searcher := &fakeFeedSearchProvider{
+		candidates: []parserv1.ArticleCandidate{
+			{SourceName: "habr", ExternalID: "1", URL: "https://habr.com/1", Title: "Keep"},
+			{SourceName: "vc", ExternalID: "2", URL: "https://vc.ru/2", Title: "Hide"},
+			{SourceName: "dzen", ExternalID: "3", URL: "https://dzen.ru/3", Title: "Saved"},
+		},
+	}
+	reactions := &fakeUserReactionProvider{
+		reactions: []userv1.UserReaction{
+			{UserID: "reader-1", ArticleID: "vc:2", Type: userv1.ReactionSkip, CreatedAt: time.Date(2026, 7, 11, 10, 0, 0, 0, time.UTC)},
+			{UserID: "reader-1", ArticleID: "dzen:3", Type: userv1.ReactionSave, CreatedAt: time.Date(2026, 7, 11, 10, 1, 0, 0, time.UTC)},
+		},
+	}
+	handler := NewFeedHandlerWithRefill(FeedHandlerDependencies{
+		FeedProvider:         fakeFeedProvider{},
+		SearchProvider:       searcher,
+		UserReactionProvider: reactions,
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/feed?query=go&user_id=reader-1&limit=10", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", response.Code)
+	}
+	if reactions.userID != "reader-1" {
+		t.Fatalf("expected reader-1 reaction lookup, got %q", reactions.userID)
+	}
+	var payload FeedResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(payload.Items) != 2 {
+		t.Fatalf("expected skipped item hidden, got %#v", payload.Items)
+	}
+	if payload.Items[0].ArticleID != "habr:1" || payload.Items[1].ArticleID != "dzen:3" {
+		t.Fatalf("unexpected personalized items: %#v", payload.Items)
+	}
+	if !payload.Items[1].Saved || payload.Items[1].Reaction != string(userv1.ReactionSave) {
+		t.Fatalf("expected saved marker on dzen item, got %#v", payload.Items[1])
 	}
 }
 

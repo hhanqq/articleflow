@@ -10,6 +10,7 @@ import (
 	articleclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/article"
 	feedclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/feed"
 	parserclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/parser"
+	userclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/user"
 	"github.com/hanq/articleflow/services/gateway-api/internal/config"
 	"github.com/hanq/articleflow/services/gateway-api/internal/reactions"
 	httptransport "github.com/hanq/articleflow/services/gateway-api/internal/transport/http"
@@ -27,16 +28,18 @@ func (app *App) Handler() http.Handler {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
 	articles := articleclient.New(app.cfg.ArticleServiceURL, http.DefaultClient)
 	parser := parserclient.New(app.cfg.ParserServiceURL, http.DefaultClient)
+	users := userclient.New(app.cfg.UserServiceURL, http.DefaultClient)
 	return httptransport.NewRouter(httptransport.RouterDependencies{
-		ServiceName:        app.cfg.ServiceName,
-		ArticleProvider:    articles,
-		FeedProvider:       feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
-		SearchProvider:     articles,
-		ParserJobClient:    parser,
-		ParserSourceClient: parser,
-		ReactionRecorder:   reactions.NewPublisher(producer),
-		RateLimitPerMinute: app.cfg.RateLimitPerMinute,
-		FeedCacheTTL:       time.Duration(app.cfg.FeedCacheTTLSeconds) * time.Second,
+		ServiceName:          app.cfg.ServiceName,
+		ArticleProvider:      articles,
+		FeedProvider:         feedclient.New(app.cfg.FeedServiceURL, http.DefaultClient),
+		SearchProvider:       articles,
+		ParserJobClient:      parser,
+		ParserSourceClient:   parser,
+		UserReactionProvider: users,
+		ReactionRecorder:     reactions.NewPublisher(producer),
+		RateLimitPerMinute:   app.cfg.RateLimitPerMinute,
+		FeedCacheTTL:         time.Duration(app.cfg.FeedCacheTTLSeconds) * time.Second,
 	})
 }
 

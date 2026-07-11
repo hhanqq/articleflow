@@ -143,12 +143,15 @@ services:
         SERVICE: user-service
     environment:
       KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+      USER_HTTP_ADDR: :8084
       USER_GRPC_ADDR: :9003
       USER_REACTION_TOPIC: ${USER_REACTION_TOPIC:-user.reaction.created.v1}
       USER_CONSUMER_GROUP_ID: ${USER_CONSUMER_GROUP_ID:-user-service}
       USER_CONSUMER_MAX_MESSAGES: ${USER_CONSUMER_MAX_MESSAGES:-0}
       USER_STORAGE_DRIVER: ${USER_STORAGE_DRIVER:-postgres}
       USER_POSTGRES_DSN: *user-postgres-dsn
+    ports:
+      - "${USER_HTTP_PORT:-8084}:8084"
 
   gateway-api:
     <<: *go-service
@@ -164,6 +167,8 @@ services:
         condition: service_healthy
       feed-service:
         condition: service_healthy
+      user-service:
+        condition: service_started
       kafka:
         condition: service_started
     ports:
@@ -173,6 +178,7 @@ services:
       ARTICLE_SERVICE_URL: http://article-service:8083
       PARSER_SERVICE_URL: http://parser-service:8081
       FEED_SERVICE_URL: http://feed-service:8082
+      USER_SERVICE_URL: http://user-service:8084
       KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
       GATEWAY_RATE_LIMIT_PER_MINUTE: ${GATEWAY_RATE_LIMIT_PER_MINUTE:-120}
       GATEWAY_FEED_CACHE_TTL_SECONDS: ${GATEWAY_FEED_CACHE_TTL_SECONDS:-15}

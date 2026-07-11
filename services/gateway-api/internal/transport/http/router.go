@@ -8,15 +8,16 @@ import (
 )
 
 type RouterDependencies struct {
-	ServiceName        string
-	ArticleProvider    ArticleProvider
-	FeedProvider       FeedProvider
-	SearchProvider     SearchProvider
-	ParserJobClient    ParserJobClient
-	ParserSourceClient ParserSourceClient
-	ReactionRecorder   ReactionRecorder
-	RateLimitPerMinute int
-	FeedCacheTTL       time.Duration
+	ServiceName          string
+	ArticleProvider      ArticleProvider
+	FeedProvider         FeedProvider
+	SearchProvider       SearchProvider
+	ParserJobClient      ParserJobClient
+	ParserSourceClient   ParserSourceClient
+	UserReactionProvider UserReactionProvider
+	ReactionRecorder     ReactionRecorder
+	RateLimitPerMinute   int
+	FeedCacheTTL         time.Duration
 }
 
 func NewRouter(dependencies RouterDependencies) http.Handler {
@@ -26,10 +27,11 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 	mux.Handle("/healthz", NewHealthHandler(dependencies.ServiceName))
 	mux.Handle("/metrics", observability.NewPrometheusHandler(dependencies.ServiceName, metrics))
 	mux.Handle("/api/v1/feed", NewFeedHandlerWithRefill(FeedHandlerDependencies{
-		FeedProvider:    dependencies.FeedProvider,
-		SearchProvider:  dependencies.SearchProvider,
-		ParserJobClient: dependencies.ParserJobClient,
-		CacheTTL:        dependencies.FeedCacheTTL,
+		FeedProvider:         dependencies.FeedProvider,
+		SearchProvider:       dependencies.SearchProvider,
+		ParserJobClient:      dependencies.ParserJobClient,
+		UserReactionProvider: dependencies.UserReactionProvider,
+		CacheTTL:             dependencies.FeedCacheTTL,
 	}))
 	mux.Handle("/api/v1/articles", NewArticleHandler(dependencies.ArticleProvider))
 	mux.Handle("/api/v1/search", NewSearchHandler(dependencies.SearchProvider))

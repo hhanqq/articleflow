@@ -11,6 +11,7 @@ import (
 
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
+	userv1 "github.com/hanq/articleflow/contracts/user/v1"
 )
 
 type FeedProvider interface {
@@ -25,13 +26,18 @@ type FeedParserJobClient interface {
 	StartAsync(ctx context.Context, query parserv1.SearchQuery) (parserv1.ParserJob, error)
 }
 
+type UserReactionProvider interface {
+	ListUserReactions(ctx context.Context, userID string) ([]userv1.UserReaction, error)
+}
+
 type FeedHandlerDependencies struct {
-	FeedProvider    FeedProvider
-	SearchProvider  FeedSearchProvider
-	ParserJobClient FeedParserJobClient
-	RefillMinItems  int
-	RefillLimit     int
-	CacheTTL        time.Duration
+	FeedProvider         FeedProvider
+	SearchProvider       FeedSearchProvider
+	ParserJobClient      FeedParserJobClient
+	UserReactionProvider UserReactionProvider
+	RefillMinItems       int
+	RefillLimit          int
+	CacheTTL             time.Duration
 }
 
 type FeedResponse struct {
@@ -60,7 +66,7 @@ func NewFeedHandlerWithRefill(dependencies FeedHandlerDependencies) http.Handler
 			handleQueryFeed(response, request, dependencies, cache, queryText, limit)
 			return
 		}
-		items := dependencies.FeedProvider.List(limit)
+		items := personalizedFeedItems(request, dependencies, dependencies.FeedProvider.List(limit))
 		response.Header().Set("Content-Type", "application/json")
 		response.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(response).Encode(FeedResponse{
@@ -101,7 +107,7 @@ func handleQueryFeed(response http.ResponseWriter, request *http.Request, depend
 		http.Error(response, "feed search failed", http.StatusBadGateway)
 		return
 	}
-	items := feedItemsFromCandidates(candidates)
+	items := personalizedFeedItems(request, dependencies, feedItemsFromCandidates(candidates))
 	payload := FeedResponse{
 		Items:         items,
 		Mode:          "query",
@@ -237,6 +243,68 @@ func nextFeedCursor(currentOffset int, returnedCount int, limit int) string {
 		return ""
 	}
 	return "offset:" + strconv.Itoa(currentOffset+returnedCount)
+}
+
+func personalizedFeedItems(request *http.Request, dependencies FeedHandlerDependencies, items []feedv1.FeedItem) []feedv1.FeedItem {
+	userID := strings.TrimSpace(request.URL.Query().Get("user_id"))
+	if userID == "" || dependencies.UserReactionProvider == nil || len(items) == 0 {
+		return items
+	}
+	reactions, err := dependencies.UserReactionProvider.ListUserReactions(request.Context(), userID)
+	if err != nil || len(reactions) == 0 {
+		return items
+	}
+	return applyUserReactions(items, reactions)
+}
+
+func applyUserReactions(items []feedv1.FeedItem, reactions []userv1.UserReaction) []feedv1.FeedItem {
+	byArticle := latestReactionsByArticle(reactions)
+	result := make([]feedv1.FeedItem, 0, len(items))
+	for _, item := range items {
+		reaction, ok := byArticle[item.ArticleID]
+		if ok && hidesFeedItem(reaction.Type) {
+			continue
+		}
+		if ok {
+			item.Reaction = string(reaction.Type)
+			item.Saved = reaction.Type == userv1.ReactionSave
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func latestReactionsByArticle(reactions []userv1.UserReaction) map[string]userv1.UserReaction {
+	byArticle := make(map[string]userv1.UserReaction)
+	for _, reaction := range reactions {
+		if strings.TrimSpace(reaction.ArticleID) == "" {
+			continue
+		}
+		current, ok := byArticle[reaction.ArticleID]
+		currentPriority := reactionPriority(current.Type)
+		nextPriority := reactionPriority(reaction.Type)
+		if !ok || nextPriority > currentPriority || nextPriority == currentPriority && reaction.CreatedAt.After(current.CreatedAt) {
+			byArticle[reaction.ArticleID] = reaction
+		}
+	}
+	return byArticle
+}
+
+func hidesFeedItem(reactionType userv1.ReactionType) bool {
+	return reactionType == userv1.ReactionSkip || reactionType == userv1.ReactionDislike
+}
+
+func reactionPriority(reactionType userv1.ReactionType) int {
+	switch reactionType {
+	case userv1.ReactionSkip, userv1.ReactionDislike:
+		return 3
+	case userv1.ReactionSave:
+		return 2
+	case userv1.ReactionLike:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func parseLimit(request *http.Request) int {

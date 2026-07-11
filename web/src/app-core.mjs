@@ -21,6 +21,8 @@ export function normalizeFeedItem(raw = {}) {
     tags: Array.isArray(tags) ? tags : [],
     score: Number(raw.Score ?? raw.score ?? 0),
     scoreReasons: Array.isArray(scoreReasons) ? scoreReasons : [],
+    reaction: String(raw.Reaction ?? raw.reaction ?? ""),
+    saved: Boolean(raw.Saved ?? raw.saved),
     publishedAt: String(raw.PublishedAt ?? raw.published_at ?? ""),
   };
 }
@@ -95,11 +97,15 @@ export function buildSelectedSources({ allSelected, selected }) {
   return unique;
 }
 
-export function buildFeedQueryPath({ query, sources, limit, cursor, fromDate, toDate, refill } = {}) {
+export function buildFeedQueryPath({ query, sources, limit, cursor, fromDate, toDate, refill, userID } = {}) {
   const params = new URLSearchParams();
   const parsedLimit = Number.parseInt(String(limit ?? "30"), 10);
   params.set("limit", String(Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 30));
 
+  const normalizedUserID = String(userID ?? "").trim();
+  if (normalizedUserID) {
+    params.set("user_id", normalizedUserID);
+  }
   const normalizedQuery = String(query ?? "").trim();
   if (normalizedQuery) {
     params.set("query", normalizedQuery);

@@ -44,6 +44,8 @@ test("normalizeFeedItem accepts Go JSON field names from gateway", () => {
     Tags: ["go", "kafka"],
     Score: 23.45,
     ScoreReasons: ["query_match:go", "freshness"],
+    Reaction: "save",
+    Saved: true,
     PublishedAt: "2026-07-07T12:00:00Z",
   });
 
@@ -54,6 +56,8 @@ test("normalizeFeedItem accepts Go JSON field names from gateway", () => {
   assert.deepEqual(item.tags, ["go", "kafka"]);
   assert.equal(item.score, 23.45);
   assert.deepEqual(item.scoreReasons, ["query_match:go", "freshness"]);
+  assert.equal(item.reaction, "save");
+  assert.equal(item.saved, true);
 });
 
 test("normalizeCandidateItem builds stable feed item id from parser candidate", () => {
@@ -141,8 +145,9 @@ test("buildFeedQueryPath builds cursor feed URL for query scrolling", () => {
       cursor: "offset:20",
       refill: true,
       fromDate: "2026-07-01T00:00:00.000Z",
+      userID: "reader-1",
     }),
-    "/api/v1/feed?limit=10&query=go+kafka&sources=habr%2Cvc&cursor=offset%3A20&from_date=2026-07-01T00%3A00%3A00.000Z&refill=true",
+    "/api/v1/feed?limit=10&user_id=reader-1&query=go+kafka&sources=habr%2Cvc&cursor=offset%3A20&from_date=2026-07-01T00%3A00%3A00.000Z&refill=true",
   );
 });
 
