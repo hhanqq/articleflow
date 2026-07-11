@@ -40,6 +40,24 @@ func TestPrometheusHandlerRendersCounters(t *testing.T) {
 	}
 }
 
+func TestPrometheusHandlerRendersLabelledCounters(t *testing.T) {
+	metrics := NewMetricsRegistry()
+	metrics.AddLabels("articleflow_parser_source_found_total", map[string]string{
+		"source": "habr",
+		"status": "ok",
+	}, 3)
+	handler := NewPrometheusHandler("parser-service", metrics)
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	body := response.Body.String()
+	if !strings.Contains(body, `articleflow_parser_source_found_total{service="parser-service",source="habr",status="ok"} 3`) {
+		t.Fatalf("expected labelled source metric, got %q", body)
+	}
+}
+
 func TestInstrumentHTTPRequestsCountsRequests(t *testing.T) {
 	metrics := NewMetricsRegistry()
 	handler := InstrumentHTTPRequests(metrics, http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {

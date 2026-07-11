@@ -17,10 +17,15 @@ type SearchPublisher interface {
 type Manager struct {
 	store     Store
 	publisher SearchPublisher
+	metrics   MetricsRecorder
 }
 
 func NewManager(store Store, publisher SearchPublisher) *Manager {
-	return &Manager{store: store, publisher: publisher}
+	return NewManagerWithMetrics(store, publisher, nil)
+}
+
+func NewManagerWithMetrics(store Store, publisher SearchPublisher, metrics MetricsRecorder) *Manager {
+	return &Manager{store: store, publisher: publisher, metrics: metrics}
 }
 
 func (manager *Manager) Start(ctx context.Context, query parserv1.SearchQuery) (parserv1.ParserJob, error) {
@@ -76,6 +81,7 @@ func (manager *Manager) Run(ctx context.Context, id string) (parserv1.ParserJob,
 		job.Status = parserv1.ParserJobStatusFailed
 		job.Error = err.Error()
 		_, saveErr := manager.store.Save(ctx, job)
+		manager.observe(job)
 		if saveErr != nil {
 			return job, saveErr
 		}
@@ -85,7 +91,11 @@ func (manager *Manager) Run(ctx context.Context, id string) (parserv1.ParserJob,
 	job.CandidatesCount = len(result.Candidates)
 	job.Candidates = append([]parserv1.ArticleCandidate(nil), result.Candidates...)
 	job.Error = ""
-	return manager.store.Save(ctx, job)
+	saved, err := manager.store.Save(ctx, job)
+	if err == nil {
+		manager.observe(saved)
+	}
+	return saved, err
 }
 
 func (manager *Manager) Get(ctx context.Context, id string) (parserv1.ParserJob, bool, error) {
@@ -99,4 +109,10 @@ func (manager *Manager) List(ctx context.Context, limit int) ([]parserv1.ParserJ
 func stableJobID(query parserv1.SearchQuery, createdAt time.Time) string {
 	sum := sha1.Sum([]byte(query.Text + createdAt.Format(time.RFC3339Nano)))
 	return "parser-job-" + hex.EncodeToString(sum[:8])
+}
+
+func (manager *Manager) observe(job parserv1.ParserJob) {
+	if manager.metrics != nil {
+		manager.metrics.ObserveParserJob(job)
+	}
 }

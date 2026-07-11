@@ -14,6 +14,14 @@ type fakeSearchPublisher struct {
 	err    error
 }
 
+type fakeMetricsRecorder struct {
+	jobs []parserv1.ParserJob
+}
+
+func (recorder *fakeMetricsRecorder) ObserveParserJob(job parserv1.ParserJob) {
+	recorder.jobs = append(recorder.jobs, job)
+}
+
 func (publisher fakeSearchPublisher) SearchAndPublish(_ context.Context, _ parserv1.SearchQuery) (parserv1.SearchResult, error) {
 	if publisher.err != nil {
 		return publisher.result, publisher.err
@@ -75,6 +83,37 @@ func TestRunSearchJobCompletesAndStoresCandidates(t *testing.T) {
 	}
 	if len(stored.SourceStats) != 2 {
 		t.Fatalf("expected stored source stats, got %d", len(stored.SourceStats))
+	}
+}
+
+func TestRunSearchJobRecordsMetrics(t *testing.T) {
+	store := NewMemoryStore()
+	metrics := &fakeMetricsRecorder{}
+	manager := NewManagerWithMetrics(store, fakeSearchPublisher{
+		result: parserv1.SearchResult{
+			Candidates: []parserv1.ArticleCandidate{
+				{SourceName: "habr", ExternalID: "1", Title: "First"},
+			},
+			SourceStats: []parserv1.SourceStats{
+				{SourceName: "habr", Strategy: "rss_search_html_article", Status: parserv1.SourceStatusOK, FoundCount: 3, AcceptedCount: 2, ReturnedCount: 1, PublishedCount: 1, FilteredCount: 1, DurationMS: 42},
+			},
+		},
+	}, metrics)
+
+	job, err := manager.Start(context.Background(), parserv1.SearchQuery{Text: "go kafka", Limit: 10})
+	if err != nil {
+		t.Fatalf("start job: %v", err)
+	}
+	completed, err := manager.Run(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("run job: %v", err)
+	}
+
+	if len(metrics.jobs) != 1 {
+		t.Fatalf("expected one metrics observation, got %d", len(metrics.jobs))
+	}
+	if metrics.jobs[0].ID != completed.ID || metrics.jobs[0].SourceStats[0].Strategy != "rss_search_html_article" {
+		t.Fatalf("unexpected observed job: %#v", metrics.jobs[0])
 	}
 }
 

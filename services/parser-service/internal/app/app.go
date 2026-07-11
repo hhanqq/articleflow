@@ -29,23 +29,26 @@ func (app *App) Handler() http.Handler {
 		panic(err)
 	}
 	_ = closeStore
-	return app.handlerWithStore(store)
+	metrics := observability.NewMetricsRegistry()
+	return app.handlerWithStore(store, metrics)
 }
 
-func (app *App) handlerWithStore(store jobs.Store) http.Handler {
-	return app.handlerWithManager(app.newJobManager(store))
+func (app *App) handlerWithStore(store jobs.Store, metrics *observability.MetricsRegistry) http.Handler {
+	return app.handlerWithManager(app.newJobManager(store, metrics), metrics)
 }
 
-func (app *App) newJobManager(store jobs.Store) *jobs.Manager {
+func (app *App) newJobManager(store jobs.Store, metrics *observability.MetricsRegistry) *jobs.Manager {
 	producer := articleflowkafka.NewWriterProducer(app.cfg.BrokerList())
 	sourceRegistry := sources.BuildRegistry(app.cfg)
 	searchUsecase := search.NewUsecase(producer, sourceRegistry.Parsers)
-	return jobs.NewManager(store, searchUsecase)
+	return jobs.NewManagerWithMetrics(store, searchUsecase, jobs.NewObservabilityMetricsRecorder(metrics))
 }
 
-func (app *App) handlerWithManager(manager *jobs.Manager) http.Handler {
+func (app *App) handlerWithManager(manager *jobs.Manager, metrics *observability.MetricsRegistry) http.Handler {
 	sourceRegistry := sources.BuildRegistry(app.cfg)
-	metrics := observability.NewMetricsRegistry()
+	if metrics == nil {
+		metrics = observability.NewMetricsRegistry()
+	}
 	metrics.Inc("articleflow_service_info")
 
 	mux := http.NewServeMux()
@@ -64,10 +67,11 @@ func (app *App) Run(ctx context.Context) error {
 		return err
 	}
 	defer closeStore()
-	manager := app.newJobManager(store)
+	metrics := observability.NewMetricsRegistry()
+	manager := app.newJobManager(store, metrics)
 	server := &http.Server{
 		Addr:    app.cfg.HTTPAddr,
-		Handler: app.handlerWithManager(manager),
+		Handler: app.handlerWithManager(manager, metrics),
 	}
 	errs := make(chan error, 2)
 	go func() {
