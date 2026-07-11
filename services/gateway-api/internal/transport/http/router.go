@@ -2,6 +2,7 @@ package httptransport
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/hanq/articleflow/packages/observability"
 )
@@ -14,6 +15,8 @@ type RouterDependencies struct {
 	ParserJobClient    ParserJobClient
 	ParserSourceClient ParserSourceClient
 	ReactionRecorder   ReactionRecorder
+	RateLimitPerMinute int
+	FeedCacheTTL       time.Duration
 }
 
 func NewRouter(dependencies RouterDependencies) http.Handler {
@@ -26,6 +29,7 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 		FeedProvider:    dependencies.FeedProvider,
 		SearchProvider:  dependencies.SearchProvider,
 		ParserJobClient: dependencies.ParserJobClient,
+		CacheTTL:        dependencies.FeedCacheTTL,
 	}))
 	mux.Handle("/api/v1/articles", NewArticleHandler(dependencies.ArticleProvider))
 	mux.Handle("/api/v1/search", NewSearchHandler(dependencies.SearchProvider))
@@ -33,7 +37,9 @@ func NewRouter(dependencies RouterDependencies) http.Handler {
 	mux.Handle("/api/v1/search/jobs", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/search/jobs/", NewSearchJobsHandler(dependencies.ParserJobClient))
 	mux.Handle("/api/v1/reactions", NewReactionHandler(dependencies.ReactionRecorder))
-	return withCORS(observability.InstrumentHTTPRequests(metrics, mux))
+	handler := observability.InstrumentHTTPRequests(metrics, mux)
+	handler = NewRateLimitMiddleware(dependencies.RateLimitPerMinute, time.Minute, handler)
+	return withCORS(handler)
 }
 
 func withCORS(next http.Handler) http.Handler {

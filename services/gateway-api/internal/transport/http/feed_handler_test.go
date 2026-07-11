@@ -55,10 +55,12 @@ func TestFeedHandlerReturnsJSONFeed(t *testing.T) {
 type fakeFeedSearchProvider struct {
 	candidates []parserv1.ArticleCandidate
 	query      parserv1.SearchQuery
+	calls      int
 }
 
 func (provider *fakeFeedSearchProvider) Search(query parserv1.SearchQuery) ([]parserv1.ArticleCandidate, error) {
 	provider.query = query
+	provider.calls++
 	return provider.candidates, nil
 }
 
@@ -194,5 +196,38 @@ func TestFeedHandlerUsesCursorForQueryFeedPagination(t *testing.T) {
 	}
 	if payload.NextCursor != "offset:2" {
 		t.Fatalf("expected next cursor offset:2, got %q", payload.NextCursor)
+	}
+}
+
+func TestFeedHandlerCachesQueryFeedResponses(t *testing.T) {
+	searcher := &fakeFeedSearchProvider{
+		candidates: []parserv1.ArticleCandidate{
+			{
+				SourceName: "habr",
+				ExternalID: "habr-1",
+				URL:        "https://habr.com/ru/articles/1/",
+				Title:      "Go Kafka cache",
+			},
+		},
+	}
+	handler := NewFeedHandlerWithRefill(FeedHandlerDependencies{
+		FeedProvider:   fakeFeedProvider{},
+		SearchProvider: searcher,
+		CacheTTL:       time.Minute,
+	})
+
+	first := httptest.NewRecorder()
+	handler.ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/api/v1/feed?query=go+kafka&limit=1", nil))
+	second := httptest.NewRecorder()
+	handler.ServeHTTP(second, httptest.NewRequest(http.MethodGet, "/api/v1/feed?query=go+kafka&limit=1", nil))
+
+	if first.Code != http.StatusOK || second.Code != http.StatusOK {
+		t.Fatalf("expected 200 responses, got %d and %d", first.Code, second.Code)
+	}
+	if searcher.calls != 1 {
+		t.Fatalf("expected cached second response, search calls=%d", searcher.calls)
+	}
+	if first.Body.String() != second.Body.String() {
+		t.Fatalf("expected identical cached response")
 	}
 }

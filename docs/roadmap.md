@@ -49,11 +49,14 @@ Feed persistence is available: feed-service can use memory storage by default or
 
 ## Current product focus
 
-The active product track has covered stages 2, 3, 4, 5, 6, and 8:
+The active product track has covered stages 2 through 10:
 
 - Stage 2 adds cursor pagination to query feed responses so the UI can scroll without offset-only behavior.
 - Stage 3 adds source diagnostics with source strategy, status, counts, latency, and errors in parser job results.
 - Stage 4 improves anti-duplicates with canonical URLs and normalized title fingerprints.
 - Stage 5 improves ranking with freshness, relevance, source diversity, and visible score reasons.
 - Stage 6 extends personalization through reaction-derived tag/source weights.
+- Stage 7 turns the web UI into a cursor-driven scrolling product feed.
 - Stage 8 adds background ingestion scheduling so parser jobs can warm the shared article pool without a user click.
+- Stage 9 records labelled parser/source metrics for source counts, duration, status, and strategies.
+- Stage 10 adds gateway request rate limiting and short query-feed caching.

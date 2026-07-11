@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	feedv1 "github.com/hanq/articleflow/contracts/feed/v1"
 	parserv1 "github.com/hanq/articleflow/contracts/parser/v1"
@@ -29,6 +31,7 @@ type FeedHandlerDependencies struct {
 	ParserJobClient FeedParserJobClient
 	RefillMinItems  int
 	RefillLimit     int
+	CacheTTL        time.Duration
 }
 
 type FeedResponse struct {
@@ -45,6 +48,7 @@ func NewFeedHandler(provider FeedProvider) http.Handler {
 }
 
 func NewFeedHandlerWithRefill(dependencies FeedHandlerDependencies) http.Handler {
+	cache := newFeedResponseCache(dependencies.CacheTTL)
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodGet {
 			http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
@@ -53,7 +57,7 @@ func NewFeedHandlerWithRefill(dependencies FeedHandlerDependencies) http.Handler
 		limit := parseLimit(request)
 		queryText := strings.TrimSpace(request.URL.Query().Get("query"))
 		if queryText != "" && dependencies.SearchProvider != nil {
-			handleQueryFeed(response, request, dependencies, queryText, limit)
+			handleQueryFeed(response, request, dependencies, cache, queryText, limit)
 			return
 		}
 		items := dependencies.FeedProvider.List(limit)
@@ -67,7 +71,14 @@ func NewFeedHandlerWithRefill(dependencies FeedHandlerDependencies) http.Handler
 	})
 }
 
-func handleQueryFeed(response http.ResponseWriter, request *http.Request, dependencies FeedHandlerDependencies, queryText string, limit int) {
+func handleQueryFeed(response http.ResponseWriter, request *http.Request, dependencies FeedHandlerDependencies, cache *feedResponseCache, queryText string, limit int) {
+	cacheKey := request.URL.RawQuery
+	if cache != nil && !wantsRefill(request) {
+		if payload, ok := cache.get(cacheKey); ok {
+			writeFeedResponse(response, payload)
+			return
+		}
+	}
 	query := parserv1.SearchQuery{
 		Text:    queryText,
 		Sources: parseCSVQueryValues(request, "sources"),
@@ -95,17 +106,17 @@ func handleQueryFeed(response http.ResponseWriter, request *http.Request, depend
 			payload.RefillJob = &job
 		}
 	}
-	response.Header().Set("Content-Type", "application/json")
-	response.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(response).Encode(payload)
+	if cache != nil && !payload.RefillStarted {
+		cache.set(cacheKey, payload)
+	}
+	writeFeedResponse(response, payload)
 }
 
 func shouldStartRefill(request *http.Request, dependencies FeedHandlerDependencies, itemCount int, limit int) bool {
 	if dependencies.ParserJobClient == nil {
 		return false
 	}
-	rawRefill := strings.ToLower(strings.TrimSpace(request.URL.Query().Get("refill")))
-	if rawRefill != "true" && rawRefill != "1" && rawRefill != "yes" {
+	if !wantsRefill(request) {
 		return false
 	}
 	minItems := dependencies.RefillMinItems
@@ -116,6 +127,11 @@ func shouldStartRefill(request *http.Request, dependencies FeedHandlerDependenci
 		minItems = 10
 	}
 	return itemCount < minItems
+}
+
+func wantsRefill(request *http.Request) bool {
+	rawRefill := strings.ToLower(strings.TrimSpace(request.URL.Query().Get("refill")))
+	return rawRefill == "true" || rawRefill == "1" || rawRefill == "yes"
 }
 
 func refillLimit(configured int, feedLimit int) int {
@@ -207,4 +223,54 @@ func parseLimit(request *http.Request) int {
 		return 100
 	}
 	return limit
+}
+
+func writeFeedResponse(response http.ResponseWriter, payload FeedResponse) {
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(response).Encode(payload)
+}
+
+type cachedFeedResponse struct {
+	payload   FeedResponse
+	expiresAt time.Time
+}
+
+type feedResponseCache struct {
+	mu      sync.RWMutex
+	ttl     time.Duration
+	entries map[string]cachedFeedResponse
+	now     func() time.Time
+}
+
+func newFeedResponseCache(ttl time.Duration) *feedResponseCache {
+	if ttl <= 0 {
+		return nil
+	}
+	return &feedResponseCache{
+		ttl:     ttl,
+		entries: make(map[string]cachedFeedResponse),
+		now:     time.Now,
+	}
+}
+
+func (cache *feedResponseCache) get(key string) (FeedResponse, bool) {
+	cache.mu.RLock()
+	item, ok := cache.entries[key]
+	cache.mu.RUnlock()
+	if !ok || cache.now().After(item.expiresAt) {
+		if ok {
+			cache.mu.Lock()
+			delete(cache.entries, key)
+			cache.mu.Unlock()
+		}
+		return FeedResponse{}, false
+	}
+	return item.payload, true
+}
+
+func (cache *feedResponseCache) set(key string, payload FeedResponse) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	cache.entries[key] = cachedFeedResponse{payload: payload, expiresAt: cache.now().Add(cache.ttl)}
 }

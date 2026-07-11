@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	articleflowkafka "github.com/hanq/articleflow/packages/kafka"
 	articleclient "github.com/hanq/articleflow/services/gateway-api/internal/clients/article"
@@ -34,6 +35,8 @@ func (app *App) Handler() http.Handler {
 		ParserJobClient:    parser,
 		ParserSourceClient: parser,
 		ReactionRecorder:   reactions.NewPublisher(producer),
+		RateLimitPerMinute: app.cfg.RateLimitPerMinute,
+		FeedCacheTTL:       time.Duration(app.cfg.FeedCacheTTLSeconds) * time.Second,
 	})
 }
 

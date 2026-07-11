@@ -174,6 +174,8 @@ services:
       PARSER_SERVICE_URL: http://parser-service:8081
       FEED_SERVICE_URL: http://feed-service:8082
       KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:29092}
+      GATEWAY_RATE_LIMIT_PER_MINUTE: ${GATEWAY_RATE_LIMIT_PER_MINUTE:-120}
+      GATEWAY_FEED_CACHE_TTL_SECONDS: ${GATEWAY_FEED_CACHE_TTL_SECONDS:-15}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz >/dev/null"]
       interval: 10s
